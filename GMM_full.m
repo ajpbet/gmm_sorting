@@ -12,7 +12,7 @@ function [g,g_filt,xg,pg,coeffs,medDist,best_values,summary_out] = GMM_full(spik
     xg     = cell(1,m);           
     pg     = cell(1,m);           
 
-    summary_gmm = cell(20,m);
+    summary_gmm = cell(21,m);
 
     coeff_interest = 1;
     for j = 1:m
@@ -42,6 +42,7 @@ function [g,g_filt,xg,pg,coeffs,medDist,best_values,summary_out] = GMM_full(spik
         summary_gmm{18,j} = Mj.g.Sigma;
         summary_gmm{19,j} = Mj.weights;
         summary_gmm{20,j} = Mj.Mcompon;
+        summary_gmm{21,j} = Mj.polyID;
 
 
         medDist{1,j} = Mj.med_dist;
@@ -74,7 +75,8 @@ function [g,g_filt,xg,pg,coeffs,medDist,best_values,summary_out] = GMM_full(spik
     summary_out = cell2table(summary_gmm,'VariableNames', {'coeff num', 'kj', ...
         'max kj', 'med kj','poly 2 kj(2 max)','Dij','idist', ...
         'med idist','mpdf mu','mpdf std','kpeaks','peak x', ...
-        'kinf','inf x','ipeak','iinf','mu gmm','std gmm','weights','M_comp'});
+        'kinf','inf x','ipeak','iinf','mu gmm','std gmm','weights','M_comp', ...
+        'polyID'});
     
     %     %metric for if unimodal or non
     % [max_idist,pIdistMax] = max(Idist);
@@ -108,9 +110,65 @@ function M = GMM_basic1D(x,par)
         'Start','plus', 'Options', opts);
 
     % Grid + pdf
+
+
+    mu = g.mu(:);                       
+    s  = sqrt(squeeze(g.Sigma(:)));      
+    a  = g.ComponentProportion(:);    
+    polyID = (1:numel(mu))';   % assign original indices from g
+
+    
+    
+
+    keep = a > 0.005;   %way to make sure it is not isolated % 2.5% cutoff
+    mu = mu(keep);
+    s  = s(keep);
+    a  = a(keep);
+    polyID = polyID(keep);
+    Knew = numel(mu);               % actual surviving components
+
+    [a_sort,a_idx] = sort(a,'descend');
+    dropThreshold = 4;
+    a_drops = (a_sort(1:end-1)-a_sort(2:end))*100;
+    a_cutoff = find(a_drops > dropThreshold,1);
+
+    if isempty(a_cutoff) || isnan(a_cutoff)
+        % if no cutoff found, take top 3 instead
+        topN = min(3, numel(a_sort));
+        a_top_idx = a_idx(1:topN);
+        a_top = a_sort(1:topN);
+    else
+        a_top_idx = a_idx(1:min(a_cutoff, numel(a_sort)));
+        a_top = a_sort(1:min(a_cutoff, numel(a_sort)));
+    end
+    mu_sort = mu(a_top_idx);
+    s_sort = s(a_top_idx);
+   % a_top = a_sort(1:3);
+    M_pdf = 0;
+    % combine biggest functions for consolidation metric
+
     xg = linspace(min(x), max(x), Mgrid).';
     dx = mean(diff(xg));
-    pg = pdf(g, xg);
+    scale_a = a_top/sum(a_top);
+    for i =1:length(a_top)
+        Npdf_i = normpdf(xg,mu_sort(i),s_sort(i)); %scale w a_top(i)?
+        M_pdf = M_pdf + scale_a(i)*Npdf_i;     
+     end
+
+
+    if Knew == 0
+        mu_new = mean(x);
+        s_new  = std(x) + eps;
+        a_new  = 1;
+        Knew = 1;
+    end
+    a_new = a / sum(a);
+    s_new = reshape(s.^2, 1, 1, Knew);
+
+    g_filt = gmdistribution(mu,s_new,a_new);
+
+
+    pg = pdf(g_filt, xg);
     pgmax = max(pg);
 
     % local maxima for peak detection (alternative) but can return
@@ -157,58 +215,6 @@ function M = GMM_basic1D(x,par)
     Ipeak = sum(pg(isPeak)) / pgmax;
     Iinf  = sum(pg(isInfl)) / pgmax;
 
-    mu = g.mu(:);                       
-    s  = sqrt(squeeze(g.Sigma(:)));      
-    a  = g.ComponentProportion(:);    
-     
-    
-    tol = 0.1;  % adjust: e.g. 10% of mean std or absolute tolerance
-    
-  %  [mu,s,a,polyID] = mergeNearby(mu,s,a,(1:K)',tol);
-
-    keep = a > 0.005;   %way to make sure it is not isolated % 2.5% cutoff
-    mu = mu(keep);
-    s  = s(keep);
-    a  = a(keep);
-   % polyID = polyID(keep);
-    Knew = numel(mu);               % actual surviving components
-
-    [a_sort,a_idx] = sort(a,'descend');
-    dropThreshold = 4;
-    a_drops = (a_sort(1:end-1)-a_sort(2:end))*100;
-    a_cutoff = find(a_drops > dropThreshold,1);
-
-    if isempty(a_cutoff) || isnan(a_cutoff)
-        % if no cutoff found, take top 3 instead
-        topN = min(3, numel(a_sort));
-        a_top_idx = a_idx(1:topN);
-        a_top = a_sort(1:topN);
-    else
-        a_top_idx = a_idx(1:min(a_cutoff, numel(a_sort)));
-        a_top = a_sort(1:min(a_cutoff, numel(a_sort)));
-    end
-    mu_sort = mu(a_top_idx);
-    s_sort = s(a_top_idx);
-   % a_top = a_sort(1:3);
-    M_pdf = 0;
-    % combine biggest functions for consolidation metric
-    scale_a = a_top/sum(a_top);
-    for i =1:length(a_top)
-        Npdf_i = normpdf(xg,mu_sort(i),s_sort(i)); %scale w a_top(i)?
-        M_pdf = M_pdf + scale_a(i)*Npdf_i;     
-     end
-
-
-    if Knew == 0
-        mu_new = mean(x);
-        s_new  = std(x) + eps;
-        a_new  = 1;
-        Knew = 1;
-    end
-    a_new = a / sum(a);
-    s_new = reshape(s.^2, 1, 1, Knew);
-
-    g_filt = gmdistribution(mu,s_new,a_new);
     [II,JJ] = find(triu(true(Knew),1));
 
     mu_M = sum(xg .* M_pdf) / sum(M_pdf);  % weighted mean over xg
@@ -263,7 +269,8 @@ function M = GMM_basic1D(x,par)
             'med_dist',med_dist, ...
             'comp_medMax',comp_medMax, ...
             'interest_med',coeff_oInter, ...
-            'dist_kj',kj,'mu_mpdf',mu_M,'s_mpdf',std_M,'weights',a,'Mcompon', a_top_idx);
+            'dist_kj',kj,'mu_mpdf',mu_M,'s_mpdf',std_M,'weights',a_new,'Mcompon', a_top_idx, ...
+            'polyID',polyID);
 end
 
 

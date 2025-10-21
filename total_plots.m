@@ -23,6 +23,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     lenKs = length(ks_out(:,1));
     coeff_nums = summary_table.("coeff num");
     ks_rankNums = flip(ks_out_full(:));
+    ks_rankSel = ks_out(:,1);
     
     idistVals = summary_table.idist;
     max_k = summary_table.("max kj");
@@ -71,7 +72,22 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         
     end
 %%
-    medDist_top3idx = medDist_sortIdx(:,min(3,length(medDist_sortIdx)));
+    count = 0;
+
+    medDist_top3idx = zeros(size(medDist_sortIdx,1),3);
+    for i = 1:size(medDist_sortIdx,1)
+        for y = 1:size(medDist_sortIdx,2)
+            if medDist_sortIdx(i,y) ~= 0 && ~isnan(medDist_sort(i,y))
+               count = count+ 1;
+               medDist_top3idx(i,count) = medDist_sortIdx(i,y);
+               if count == 3
+                   count = 0;
+                   break
+               end
+            end
+        end
+    end
+   % medDist_top3idx = medDist_sortIdx(:,1:min(3,length(medDist_sortIdx)));
     nRows = size(medDist_top3idx,1);
     comp_sharedIdx = zeros(nRows,1);  % result: one per row
     
@@ -82,7 +98,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         tempK   = k_top3idx(i,:);        % k top-3 for row i
         comp_shared(i,:) = tempMed.*ismember(tempMed,tempK);
         matchFound = false;
-        for j = 1:3                       % loop over medDist in priority order
+        for j = 1:length(tempMed)                       % loop over medDist in priority order
             if ismember(tempMed(j), tempK)
                 comp_sharedIdx(i) = tempMed(j);  % store first match
                 matchFound = true;
@@ -308,15 +324,20 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     %find common overlap between k and idist
 %% variable coefficient input
     if isempty(coeff_vector)
-        coeff_vals = ks_rankNums;
+        coeff_vals = ks_rankSel;
     elseif isscalar(coeff_vector)
         switch coeff_vector
             case 1
-                coeff_vals = ks_rankNums;
+                coeff_vals = ks_rankSel;
             case 2
-                coeff_vals = idist_sort(1:length(ks_rankNums),1);
+                coeff_vals = idist_sort(1:length(ks_rankSel),1);
             case 3
-                coeff_vals = idist_kmatch(1:length(ks_rankNums),1);
+                coeff_vals = idist_kmatch(1:length(ks_rankSel),1);
+            case 4
+                coeff_vals = ks_rankNums;
+            case 5
+                % test case
+                coeff_vals = [1 2 3 4];
         end
     else
         coeff_vals = coeff_vector;
@@ -351,7 +372,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         popupFig = [];
         usePopup = 0;
         % Check if we need a popup figure BEFORE the loop
-        if nnz(comp_shared(coeff_num,:)) > 1 
+        if nnz(comp_shared(coeff_num,:)) > 1 || plot_all
             popupFig = figure('Name', sprintf('Coeff %d extended spikes', coeff_num), ...
                              'NumberTitle', 'off', 'Position', [150, 150, 1000, 600]);
             % Create subplots for popup figure
@@ -362,14 +383,13 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
             usePopup = 1;
         end
         if plot_all == true
-            usePopup = 1;
             comp_shared = medDist_top3idx;
         end
         if plot_none == true
             comp_shared = [0 0 0];
         end
         % Now start your main loop
-        for p = 1:length(comp_shared(1,:))
+        for p = 1:size(comp_shared,2)
             if comp_shared(coeff_num,p) ~= 0
                 % Determine which axes to use for plotting
                 if usePopup
@@ -385,7 +405,6 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
                 axes(current_ax);
                 hold on;
                 
-                % Your existing processing code continues here...
                 mu_bestDist = mu(comp_shared(coeff_num,p));
                 sigma_bestDist = sigma(comp_shared(coeff_num,p));
         
