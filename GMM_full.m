@@ -143,6 +143,7 @@ function M = GMM_basic1D(x,par)
     end
     mu_sort = mu(a_top_idx);
     s_sort = s(a_top_idx);
+    polyID_M = polyID(a_top_idx);
    % a_top = a_sort(1:3);
     M_pdf = 0;
     % combine biggest functions for consolidation metric
@@ -269,7 +270,7 @@ function M = GMM_basic1D(x,par)
             'med_dist',med_dist, ...
             'comp_medMax',comp_medMax, ...
             'interest_med',coeff_oInter, ...
-            'dist_kj',kj,'mu_mpdf',mu_M,'s_mpdf',std_M,'weights',a_new,'Mcompon', a_top_idx, ...
+            'dist_kj',kj,'mu_mpdf',mu_M,'s_mpdf',std_M,'weights',a_new,'Mcompon', polyID_M, ...
             'polyID',polyID);
 end
 

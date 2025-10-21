@@ -60,9 +60,12 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         combined_idx = cell2mat(M_comb);
         mask = true(size(medDist_sortIdx));  % initialize all ones
         numRows = numel(summary_table.M_comp);
+        m_comp4pls = zeros(numRows,1);
         
+
         for r = 1:numRows
             idx = summary_table.M_comp{r};       % current row's indices to exclude
+            m_compNumel(r) = numel(idx);
             mask(r, :) = ~ismember(medDist_sortIdx(r, :), idx);  % row-wise comparison
         end
         
@@ -151,7 +154,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
      for i = 1:nRows
         col = length(medDist_sort(i,:));
         for j = 1:col
-            if ismember(medDist_sortIdx(i,j),k_top3idx(i,:))
+            if ismember(medDist_sortIdx(i,j),k_top3idx(i,:)) && ~isnan(medDist_sort(i,j))
                 idist_kmatch(i) = medDist_sort(i,j);
                 ranking_Idist_match(i) = j;
                 break;
@@ -323,6 +326,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     %find common overlap between k and idist
 %% variable coefficient input
+    m_comp4pls = find(m_compNumel >= 4);
+
     if isempty(coeff_vector)
         coeff_vals = ks_rankSel;
     elseif isscalar(coeff_vector)
@@ -337,7 +342,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
                 coeff_vals = ks_rankNums;
             case 5
                 % test case
-                coeff_vals = [1 2 3 4];
+                coeff_vals = m_comp4pls;
+
         end
     else
         coeff_vals = coeff_vector;
