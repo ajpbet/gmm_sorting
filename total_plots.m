@@ -1,4 +1,4 @@
-function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,all_ks,cluster_times,coeff_vector)
+function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,all_ks,cluster_times,coeff_vector, inputFile)
     %each norm gets one value
     %figures show how value interacts
     %gigure out how to remove gmm outlier
@@ -12,12 +12,20 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     % graphs should show ranked plot of all k and idist
     % their comp values should also be present either on the x or form an 
     % annotation.
+    chStr = regexp(inputFile, '\d+', 'match');  % finds all numbers
+    channelNum = chStr{2};  
+    folderName = sprintf('ch%s', channelNum);
+    if ~exist(folderName, 'dir')
+        mkdir(folderName);
+    end
 
     %% plot only good coeffs or plot top coeffs
     plot_all = true;
     exc_combPdf = true;
     plot_none = false;
 
+    polyID_M = summary_table.polyID;
+    M_comp = summary_table.M_comp;
     %%
     % testing channels 332, 337,364,322
     lenKs = length(ks_out(:,1));
@@ -44,73 +52,106 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
 %% mathing top 3 vals
     maxLen = max(cellfun(@numel, summary_table.kj));
-    kj_mat = cellfun(@(x) [x(:).' nan(1, maxLen - numel(x))], summary_table.kj, 'UniformOutput', false);
-    kj_mat = cell2mat(kj_mat);
+    kj_mat = summary_table.kj;  % keep as cell, no padding or cell2mat
+    
+    % Sort each numeric array in descending order
+    k_Mat = cell(size(kj_mat));
+    % Map sorted indices to polyIDs
+    k_sortIdx = cell(size(kj_mat));
+    for r = 1:numel(k_Mat)
+        [vals_sorted, idx] = sort(kj_mat{r}, 'descend');  % sort original numeric values
+        k_Mat{r} = vals_sorted;
+        k_sortIdx{r} = polyID_M{r}(idx);        % map sorted indices to polyIDs
+    end
+    
+    % Top 3 polyIDs for plotting / comparison
+    k_top3idx = zeros(length(k_sortIdx),3);
+    for r = 1:length(k_sortIdx)
+        nTop = min(3,length(k_sortIdx{r}));
+        k_top3idx(r,1:nTop) = k_sortIdx{r}(1:nTop);
+    end
 
-    [k_Mat,k_sortIdx]= sort(kj_mat, 2, 'descend');
-    k_top3idx = k_sortIdx(:,1:3);
-
-    medI_mat= cell2mat(cellfun(@(x) x(:).',summary_table.("med idist"),'UniformOutput',false));
-    [medDist_sort,medDist_sortIdx] = sort(medI_mat,2,'descend');
-
-%% exclude medDist values that are part of the combined pdf
-    if exc_combPdf
-        %combined_idx = cellfun(cellfun(@(x) x(:).',summary_table.M_comp,'UniformOutput',false));
-        M_comb =cellfun(@(x) [x(:).' nan(1, maxLen - numel(x))], summary_table.M_comp, 'UniformOutput', false);
-        combined_idx = cell2mat(M_comb);
-        mask = true(size(medDist_sortIdx));  % initialize all ones
-        numRows = numel(summary_table.M_comp);
-        m_comp4pls = zeros(numRows,1);
+    medDist_cell = summary_table.("med idist");  % make a local variable
+    medDist_sort = cell(size(medDist_cell));
+    medDist_sortIdx = cell(size(medDist_cell));
+    
+    for r = 1:numel(medDist_cell)
+        vals = medDist_cell{r};
+        ids  = polyID_M{r};
         
-
+        % Exclude NaNs
+        mask = ~isnan(vals);
+        vals_valid = vals(mask);
+        ids_valid  = ids(mask);
+        
+        % Sort the valid values
+        [vals_sorted, idx] = sort(vals_valid, 'descend');
+        
+        medDist_sort{r} = vals_sorted;          % store sorted medDist values
+        medDist_sortIdx{r} = ids_valid(idx);    % map sorted indices to polyIDs
+    end
+%% exclude medDist values that are part of the combined pdf
+   if exc_combPdf
+        numRows = numel(summary_table.M_comp);
+        
+        medDist_sort_masked    = cell(size(medDist_sort));
+        medDist_sortIdx_masked = cell(size(medDist_sortIdx));
+        
         for r = 1:numRows
-            idx = summary_table.M_comp{r};       % current row's indices to exclude
-            m_compNumel(r) = numel(idx);
-            mask(r, :) = ~ismember(medDist_sortIdx(r, :), idx);  % row-wise comparison
+            vals = medDist_sort{r};
+            ids  = medDist_sortIdx{r};
+            idx_exclude = summary_table.M_comp{r};  % indices to exclude
+            
+            mask = ~ismember(ids, idx_exclude) & ~isnan(vals);
+            
+            medDist_sort_masked{r}    = vals(mask);
+            medDist_sortIdx_masked{r} = ids(mask);
         end
         
-        % Apply the mask
-        medDist_sort = medDist_sort .* mask;
-        medDist_sortIdx = medDist_sortIdx .* mask;
-        
+        % Replace originals
+        medD_sortAll = medDist_sort;
+        medD_sIdxAll = medDist_sortIdx;
+        medDist_sort    = medDist_sort_masked;
+        medDist_sortIdx = medDist_sortIdx_masked;
+
     end
 %%
     count = 0;
 
-    medDist_top3idx = zeros(size(medDist_sortIdx,1),3);
-    for i = 1:size(medDist_sortIdx,1)
-        for y = 1:size(medDist_sortIdx,2)
-            if medDist_sortIdx(i,y) ~= 0 && ~isnan(medDist_sort(i,y))
-               count = count+ 1;
-               medDist_top3idx(i,count) = medDist_sortIdx(i,y);
-               if count == 3
-                   count = 0;
-                   break
-               end
-            end
+    medDist_top3idx = zeros(numel(medDist_sort),3);  % numeric matrix for plotting
+    
+    for r = 1:numel(medDist_sort)
+        vals = medDist_sort{r};
+        ids  = medDist_sortIdx{r};
+        nTop = min(3, numel(vals));
+        
+        if nTop > 0
+            medDist_top3idx(r,1:nTop) = ids(1:nTop);
         end
     end
+
    % medDist_top3idx = medDist_sortIdx(:,1:min(3,length(medDist_sortIdx)));
     nRows = size(medDist_top3idx,1);
-    comp_sharedIdx = zeros(nRows,1);  % result: one per row
+    comp_sharedIdx = zeros(size(medDist_top3idx,1),1);
+    comp_shared    = zeros(size(medDist_top3idx));
     
-    comp_shared = zeros(size(medDist_top3idx));
-
-    for i = 1:nRows
-        tempMed = medDist_top3idx(i,:);  % medDist top-3 for row i
-        tempK   = k_top3idx(i,:);        % k top-3 for row i
-        comp_shared(i,:) = tempMed.*ismember(tempMed,tempK);
+    for r = 1:size(medDist_top3idx,1)
+        tempMed = medDist_top3idx(r,:);
+        tempK   = k_top3idx(r,:);
+        
+        comp_shared(r,:) = tempMed .* ismember(tempMed, tempK);  % zero where no match
+        
+        % first match
         matchFound = false;
-        for j = 1:length(tempMed)                       % loop over medDist in priority order
-            if ismember(tempMed(j), tempK)
-                comp_sharedIdx(i) = tempMed(j);  % store first match
+        for j = 1:length(tempMed)
+            if ismember(tempMed(j), tempK) && tempMed(j) ~= 0
+                comp_sharedIdx(r) = tempMed(j);
                 matchFound = true;
-                break                        % move on to next row
+                break
             end
         end
-        
         if ~matchFound
-            comp_sharedIdx(i) = 0;           % no match at all
+            comp_sharedIdx(r) = 0;
         end
     end
 
@@ -152,10 +193,13 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
      idist_kmatch = zeros(nRows,1);
      ranking_Idist_match = zeros(nRows,1);
      for i = 1:nRows
-        col = length(medDist_sort(i,:));
-        for j = 1:col
-            if ismember(medDist_sortIdx(i,j),k_top3idx(i,:)) && ~isnan(medDist_sort(i,j))
-                idist_kmatch(i) = medDist_sort(i,j);
+        vals = medDist_sort{i};       % numeric array
+        ids  = medDist_sortIdx{i};    % numeric array
+        
+        nVals = numel(vals);
+        for j = 1:nVals
+            if ismember(ids(j), k_top3idx(i,:)) && ~isnan(vals(j))
+                idist_kmatch(i) = vals(j);
                 ranking_Idist_match(i) = j;
                 break;
             end
@@ -326,6 +370,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     %find common overlap between k and idist
 %% variable coefficient input
+
+    m_compNumel = cellfun(@numel, summary_table.M_comp);
     m_comp4pls = find(m_compNumel >= 4);
 
     if isempty(coeff_vector)
@@ -392,7 +438,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
             comp_shared = medDist_top3idx;
         end
         if plot_none == true
-            comp_shared = [0 0 0];
+           comp_shared = zeros(size(medDist_top3idx));  % same shape
         end
         % Now start your main loop
         for p = 1:size(comp_shared,2)
@@ -410,20 +456,19 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
                 
                 axes(current_ax);
                 hold on;
-                
-                mu_bestDist = mu(comp_shared(coeff_num,p));
-                sigma_bestDist = sigma(comp_shared(coeff_num,p));
+                poly_id = comp_shared(coeff_num,p);
+                idx = find(polyID_M{coeff_num} == poly_id, 1); 
+                mu_bestDist = mu(idx);
+                sigma_bestDist = sigma(idx);
         
                 range_st = mu_bestDist - 3*sigma_bestDist;
                 range_end = mu_bestDist + 3*sigma_bestDist;
         
                 spikeIdx = find(wd_coeff(:,coeff_num) >= range_st & wd_coeff(:,coeff_num) <= range_end);
                 
-                clus_colors = [[0.0 0.0 1.0];[1.0 0.0 0.0];[0.0 0.5 0.0];
-                    [0.620690 0.0 0.0];[0.413793 0.0 0.758621];[0.965517 0.517241 0.034483];
-                    [0.448276 0.379310 0.241379];[1.0 0.103448 0.724138];[0.545 0.545 0.545];
-                    [0.586207 0.827586 0.310345];[0.965517 0.620690 0.862069];
-                    [0.620690 0.758621 1.]];
+                clus_colors = [[0.0 0.0 0.0];[0.0 0.0 1.0];[1.0 0.0 0.0];[0.0 0.5 0.0];[0.620690 0.0 0.0];[0.413793 0.0 0.758621];[0.965517 0.517241 0.034483];
+                 [0.448276 0.379310 0.241379];[1.0 0.103448 0.724138];[0.545 0.545 0.545];[0.586207 0.827586 0.310345];
+                 [0.965517 0.620690 0.862069];[0.620690 0.758621 1.]];
                 
                 % Continue with the rest of your plotting code...
                 isolated_spikes = spikes(spikeIdx,:);
@@ -435,7 +480,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
             
                 [sortedClsP,sortIdxCls] = sort(percent_clust,'descend');
                     
-                top3_cluster = sortIdxCls(1:min(3,length(percent_clust)));
+                top3_cluster = clusters_present(sortIdxCls(1:min(3,length(percent_clust))));
                 top3_perc = sortedClsP(1:min(3,length(percent_clust)));
                 
                 otherPerc = sum(percent_clust) - sum(top3_perc);
@@ -484,13 +529,13 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
                 legend_handles = [];
                 
                 % Add top clusters to legend
-                for i = 1:length(top3_cluster)
-                    cluster_id = top3_cluster(i);
+                for z = 1:length(top3_cluster)
+                    cluster_id = top3_cluster(z);
                     color_idx = cluster_id + 1;
                     if color_idx <= size(clus_colors, 1)
                         h = plot(NaN, NaN, 'Color', clus_colors(color_idx, :), 'LineWidth', 2);
                         legend_handles(end+1) = h;
-                        legend_labels{end+1} = sprintf('clust %d (%.2f%%)', cluster_id, top3_perc(i));
+                        legend_labels{end+1} = sprintf('clust %d (%.2f%%)', cluster_id, top3_perc(z));
                     end
                 end
                 
@@ -515,9 +560,12 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
                 % Create the legend
                 legend(legend_handles, legend_labels, 'Location', 'best');
                 hold off;
+
+
             end
         end
-        
+        filename_spike = fullfile(folderName,sprintf('ch%s_coeff%02d_spikes.png', channelNum, coeff_num));
+        exportgraphics(popupFig, filename_spike, 'Resolution', 300);
         figure(fig);
         % >>> detect critical points on KDE (peaks & inflection) <<<
         xx_kde = xg{coeff_num}(:);
@@ -554,13 +602,26 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
         for k = 1:length(mu)
             comp_pdf = gmm_model.ComponentProportion(k) * normpdf(xg{coeff_num}, mu(k), sigma(k));
+            
+            % color by distance metric as before
             c_idx = max(1, round(dm_norm(k) * (size(cmap,1)-1))+1);
             col = cmap(c_idx,:);
-            plot(ax2,xg{coeff_num}, comp_pdf,'Color',col,'LineWidth',1.5);
-            [~,pk_idx_comp] = max(comp_pdf);
+        
+            % check if this component is in M_comp for this coefficient
+            if ismember(polyID_M{coeff_num}(k), M_comp{coeff_num})
+                lineStyle = '--';  % dotted for excluded/small polynomial
+            else
+                lineStyle = '-';   % solid for normal
+            end
+        
+            % plot component PDF
+            plot(ax2, xg{coeff_num}, comp_pdf, 'Color', col, 'LineWidth', 1.5, 'LineStyle', lineStyle);
+        
+            % plot peak marker
+            [~, pk_idx_comp] = max(comp_pdf);
             x_vals = xg{coeff_num};
-            plot(ax2,x_vals(pk_idx_comp), comp_pdf(pk_idx_comp), 'o', 'MarkerFaceColor', col, ...
-                 'MarkerEdgeColor', 'k', 'MarkerSize', 6);
+            plot(ax2, x_vals(pk_idx_comp), comp_pdf(pk_idx_comp), 'o', ...
+                'MarkerFaceColor', col, 'MarkerEdgeColor', 'k', 'MarkerSize', 6);
         end
 
         % colorbar for component distance metric (per-coeff)
@@ -606,12 +667,13 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         legend(ax2,'kde','pdf','','','','','','','location','best');
         hold(ax2,'off')
 
-        
+        [w_sort,w_sort_idx] = sort(w,'descend');
         info_str = cell(length(mu)+1,1);
         info_str{1} = sprintf('Poly |   Mean   |   Std   | Weight |');
         for k = 1:length(mu)
+            k_sort = w_sort_idx(k);
             info_str{k+1} = sprintf('%4d | %7.3f | %7.3f | %6.3f |', ...
-                k, mu(k), sigma(k), w(k));
+                polyID_M{coeff_num}(k_sort), mu(k_sort), sigma(k_sort), w_sort(k));
         end
         
         % Adjust font size based on number of components
@@ -627,19 +689,60 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
             'BackgroundColor', 'white', 'EdgeColor', 'black', 'Margin', 2);
         axis(ax_table, 'off');
 
-        info_str2 = cell(length(k_Mat(1,:))+1,1);
-        info_str2{1} = sprintf('K_Values|K_Values_IDX| MedDist | MedI_IDX |');
-        for k = 1:length(k_Mat(1,:))
-            info_str2{k+1} = sprintf('%7.3f | %7d | %7.3f | %7d |', ...
-            k_Mat(coeff_num,k), k_sortIdx(coeff_num,k), medDist_sort(coeff_num,k), medDist_sortIdx(coeff_num,k));
-        end
-
-        text(ax_table2, 0.05, 0.95, info_str2, 'Units', 'normalized', ...
+        % Determine number of elements in this row
+        numVals = min([length(k_Mat{coeff_num}), length(medD_sortAll{coeff_num}), length(medD_sIdxAll{coeff_num})]);
+        
+        info_str2 = cell(numVals+1,1);
+        info_str2{1} = sprintf('K_Values | K_Values_IDX | MedDist | MedI_IDX');
+        
+        % Display header in black
+        text(ax_table2, 0.05, 0.95, info_str2{1}, 'Units', 'normalized', ...
             'HorizontalAlignment', 'left', 'VerticalAlignment', 'top', ...
             'FontName', 'Courier', 'FontSize', font_size, ...
-            'BackgroundColor', 'white', 'EdgeColor', 'black', 'Margin', 2);
-        axis(ax_table2, 'off');
+            'BackgroundColor', 'white');
         
+        % Vertical position for first row
+        y_pos = 0.95;
+        line_spacing = 0.035; % adjust as needed
+        
+        for k = 1:numVals
+            % Get current values
+            k_val = k_Mat{coeff_num}(k);
+            k_idx = k_sortIdx{coeff_num}(k);
+            med_val = medD_sortAll{coeff_num}(k);
+            med_idx = medD_sIdxAll{coeff_num}(k);
+        
+            % Check if excluded
+            if ismember(k_idx, summary_table.M_comp{coeff_num})
+                color_k = 'r';
+            else
+                color_k = 'k';
+            end
+        
+            if ismember(med_idx, summary_table.M_comp{coeff_num})
+                color_md = 'r';
+            else
+                color_md = 'k';
+            end
+        
+            % Increment vertical position
+            y_pos = y_pos - line_spacing;
+        
+            % Display K values
+            text(ax_table2, 0.05, y_pos, sprintf('%7.3f | %10d |', k_val, k_idx), ...
+                'Units', 'normalized', 'HorizontalAlignment', 'left', ...
+                'VerticalAlignment', 'top', 'FontName', 'Courier', 'FontSize', font_size, ...
+                'Color', color_k);
+        
+            % Display MedDist values next to it
+            text(ax_table2, 0.25, y_pos, sprintf(' %7.3f | %7d ', med_val, med_idx), ...
+                'Units', 'normalized', 'HorizontalAlignment', 'left', ...
+                'VerticalAlignment', 'top', 'FontName', 'Courier', 'FontSize', font_size, ...
+                'Color', color_md);
+        end
+        filename_pdf = fullfile(folderName,sprintf('ch%s_coeff%02d_pdf.png', channelNum, coeff_num));
+        exportgraphics(fig, filename_pdf, 'Resolution', 300);
+        axis(ax_table2, 'off');
     end
 end
 
