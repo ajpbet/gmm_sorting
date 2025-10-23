@@ -126,7 +126,23 @@ function M = GMM_basic1D(x,par)
     a  = a(keep);
     polyID = polyID(keep);
     Knew = numel(mu);               % actual surviving components
+    a_new = a / sum(a);
+    s_new = reshape(s.^2, 1, 1, Knew);
 
+    g_filt = gmdistribution(mu,s_new,a_new);
+
+    xg = linspace(min(x), max(x), Mgrid).';
+    pg = pdf(g_filt, xg);
+    pgmax = max(pg);
+    dx = mean(diff(xg));
+
+    [pk_vals, pk_locs, pk_widths] = findpeaks(pg, xg, 'WidthReference', 'halfheight');
+    [~, tallest_idx] = max(pk_vals);
+    main_peak_center = pk_locs(tallest_idx);
+    main_peak_width  = pk_widths(tallest_idx);
+    left_bound  = main_peak_center - main_peak_width/2;
+    right_bound = main_peak_center + main_peak_width/2;
+    
     [a_sort,a_idx] = sort(a,'descend');
     dropThreshold = 4;
     a_drops = (a_sort(1:end-1)-a_sort(2:end))*100;
@@ -141,17 +157,20 @@ function M = GMM_basic1D(x,par)
         a_top_idx = a_idx(1:min(a_cutoff, numel(a_sort)));
         a_top = a_sort(1:min(a_cutoff, numel(a_sort)));
     end
+    mu_top = mu(a_top_idx);
+    in_main_peak = (mu_top >= left_bound) & (mu_top <= right_bound);
+    a_top_idx = a_top_idx(in_main_peak);
     mu_sort = mu(a_top_idx);
     s_sort = s(a_top_idx);
     polyID_M = polyID(a_top_idx);
    % a_top = a_sort(1:3);
     M_pdf = 0;
+    a_top = a(a_top_idx);
     % combine biggest functions for consolidation metric
 
-    xg = linspace(min(x), max(x), Mgrid).';
-    dx = mean(diff(xg));
     scale_a = a_top/sum(a_top);
     for i =1:length(a_top)
+
         Npdf_i = normpdf(xg,mu_sort(i),s_sort(i)); %scale w a_top(i)?
         M_pdf = M_pdf + scale_a(i)*Npdf_i;     
      end
@@ -163,14 +182,9 @@ function M = GMM_basic1D(x,par)
         a_new  = 1;
         Knew = 1;
     end
-    a_new = a / sum(a);
-    s_new = reshape(s.^2, 1, 1, Knew);
-
-    g_filt = gmdistribution(mu,s_new,a_new);
 
 
-    pg = pdf(g_filt, xg);
-    pgmax = max(pg);
+
 
     % local maxima for peak detection (alternative) but can return
     % prominence, and input minProminence metric. paper uses crit pts of
@@ -270,8 +284,8 @@ function M = GMM_basic1D(x,par)
             'med_dist',med_dist, ...
             'comp_medMax',comp_medMax, ...
             'interest_med',coeff_oInter, ...
-            'dist_kj',kj,'mu_mpdf',mu_M,'s_mpdf',std_M,'weights',a_new,'Mcompon', ...
-            'polyID',polyID_M);
+            'dist_kj',kj,'mu_mpdf',mu_M,'s_mpdf',std_M,'weights',a_new,'Mcompon', polyID_M, ...
+            'polyID',polyID);
 end
 
 

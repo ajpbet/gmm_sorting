@@ -565,7 +565,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
             end
         end
         filename_spike = fullfile(folderName,sprintf('ch%s_coeff%02d_spikes.png', channelNum, coeff_num));
-        exportgraphics(popupFig, filename_spike, 'Resolution', 300);
+  %      exportgraphics(popupFig, filename_spike, 'Resolution', 300);
         figure(fig);
         % >>> detect critical points on KDE (peaks & inflection) <<<
         xx_kde = xg{coeff_num}(:);
@@ -659,7 +659,22 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         if any(isInf_pdf)
             plot(ax2,xg{coeff_num}(isInf_pdf), pg_vec(isInf_pdf), 'gs','MarkerFaceColor','g','MarkerSize',7);
         end
+        [pk_vals, pk_idx, pk_widths] = findpeaks(pg{coeff_num}, xg{coeff_num});
 
+        [~, tallest_idx] = max(pk_vals);
+    
+        % Get its central x-position and width
+        peak_center = pk_idx(tallest_idx);     % location from xg, not index
+        peak_width = pk_widths(tallest_idx);   % full width at half max (FWHM)
+        
+        % Compute left/right bounds of this peak
+        left_bound  = peak_center - peak_width/2;
+        right_bound = peak_center + peak_width/2;
+        
+        % Plot the vertical dotted lines
+        yl = ylim(ax2);
+        plot(ax2, [left_bound left_bound], yl, 'k--', 'LineWidth', 1);
+        plot(ax2, [right_bound right_bound], yl, 'k--', 'LineWidth', 1);
         text(ax2,mean(xg{coeff_num})*0.65, max(pg{coeff_num})*1.05, sprintf('MSE = %.4f', mse_vals(coeff_num)),...
         'HorizontalAlignment','center','FontSize',10,'FontWeight','bold');
         
@@ -741,7 +756,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
                 'Color', color_md);
         end
         filename_pdf = fullfile(folderName,sprintf('ch%s_coeff%02d_pdf.png', channelNum, coeff_num));
-        exportgraphics(fig, filename_pdf, 'Resolution', 300);
+        %exportgraphics(fig, filename_pdf, 'Resolution', 300);
         axis(ax_table2, 'off');
     end
 end
