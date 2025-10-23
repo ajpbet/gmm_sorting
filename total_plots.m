@@ -1,4 +1,4 @@
-function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,all_ks,cluster_times,coeff_vector, inputFile)
+function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,all_ks,cluster_times,coeff_vector, inputFile,g_init)
     %each norm gets one value
     %figures show how value interacts
     %gigure out how to remove gmm outlier
@@ -309,6 +309,55 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     legend([h_match, h_ks], 'Location', 'best');
     hold off;
     
+%% idist selection criteria
+% --- Sort IDist values ascending and store full list ---
+    [sorted_idist, ind_idist] = sort(idist_kmatch);  
+
+    % --- Keep only top maxIdist candidates for knee detection ---
+    minIdist = 10;
+    maxIdist = 30;
+    top_candidates = sorted_idist(end-maxIdist+1:end);
+    top_indices    = ind_idist(end-maxIdist+1:end);
+    
+    ncoeff = length(top_candidates);
+    maxA_idist = max(top_candidates);
+    
+    % --- Sliding-window slope computation ---
+    nd = 10;
+    if ncoeff >= nd
+        d_idist = (top_candidates(nd:end) - top_candidates(1:end-nd+1)) ...
+                   / maxA_idist * ncoeff / nd;
+        all_above1_idist = find(d_idist >= 0.5);
+    else
+        all_above1_idist = [];
+    end
+    
+    % --- Knee detection ---
+    if numel(all_above1_idist) >= 2
+        aux2_idist = diff(all_above1_idist);
+        temp_bla_idist = conv(aux2_idist(:), [1 1 1]/3);   % smooth differences
+        temp_bla_idist = temp_bla_idist(2:end-1);
+        temp_bla_idist(1) = aux2_idist(1);
+        temp_bla_idist(end) = aux2_idist(end);
+    
+        % First position where 3 consecutive differences == 1
+        thr_knee_diff_idist = all_above1_idist(find(temp_bla_idist(2:end) == 1, 1)) + nd/2;
+    
+        % Number of inputs to select
+        inputs_idist = maxIdist - thr_knee_diff_idist + 1;
+    else
+        % Fallback if no steep slope detected
+        inputs_idist = minIdist;
+    end
+    
+    % --- Select top coefficients ---
+    coeff_idist = top_indices(end:-1:end-inputs_idist+1);   % descending order
+    idist_out(:,1) = coeff_idist;                           % coefficient indices
+    idist_out(:,2) = idist_kmatch(coeff_idist);            % corresponding IDist values
+    
+    idist_kmatch_lSel = length(idist_out(:,1));
+ 
+
     %% coefficient plot best idist/kj matching
 
     figure;
@@ -346,12 +395,18 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     ylabel('KS Values'); 
     title('IDist vs KS Values - highest idist with top 3 k)');
     grid on;
+
+    yline(min(ks_out(:,2)), '--', 'Color', [1 0.5 0], 'LineWidth', 1.5, 'DisplayName', 'KS cutoff');
+    xline(min(idist_out(:,2)), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder');
+
     
     % Match types (colors)
     h_match(1) = scatter(NaN, NaN, 80, 'm', 'o', 'filled', 'DisplayName', '1st mDist');
     h_match(2) = scatter(NaN, NaN, 80, 'g', 'o', 'filled', 'DisplayName', '2nd mDist');
     h_match(3) = scatter(NaN, NaN, 80, 'b', 'o', 'filled', 'DisplayName', '3rd mDist');
     h_match(4) = scatter(NaN, NaN, 80, 'r', 'o', 'filled', 'DisplayName', '>3 mDist');
+    h_match(5) = plot(NaN, NaN, '--', 'Color', [1 0.5 0], 'DisplayName', 'KS cutoff');   % orange dotted
+    h_match(6) = plot(NaN, NaN, '--', 'Color', 'b', 'DisplayName', 'IDist cutoff');     % blue dotted
 
     % KS selection (markers)
     h_ks(1) = scatter(NaN, NaN, 80, 'k', 'o', 'filled', 'DisplayName', 'KS selected');
@@ -419,6 +474,12 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         sigma = sqrt(squeeze(gmm_model.Sigma(:)));
         w = gmm_model.ComponentProportion(:);
         dm = summary_table.("med idist"){coeff_num};
+
+        % initial gmm
+        gmm_init = g_init{coeff_num};
+        mu_init = gmm_init.mu(:);
+        sigma_init = sqrt(squeeze(gmm_init.Sigma(:)));
+        w_init = gmm_init.ComponentProportion(:);
         
         % Initialize popup figure handle
         popupFig = [];
@@ -564,8 +625,9 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
             end
         end
+        
         filename_spike = fullfile(folderName,sprintf('ch%s_coeff%02d_spikes.png', channelNum, coeff_num));
-  %      exportgraphics(popupFig, filename_spike, 'Resolution', 300);
+      %  exportgraphics(popupFig, filename_spike, 'Resolution', 300);
         figure(fig);
         % >>> detect critical points on KDE (peaks & inflection) <<<
         xx_kde = xg{coeff_num}(:);
@@ -595,20 +657,20 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         hold(ax2,'on')
 
         if isempty(dm)
-            dm = zeros(length(mu),1);
+            dm = zeros(length(mu_init),1);
         end
         dm_norm = (dm - min(dm)) / (max(dm) - min(dm) + eps);
-        cmap = parula(max(length(mu),64)); % ensure colormap has enough rows
+        cmap = parula(max(length(mu_init),64)); % ensure colormap has enough rows
 
-        for k = 1:length(mu)
-            comp_pdf = gmm_model.ComponentProportion(k) * normpdf(xg{coeff_num}, mu(k), sigma(k));
+        for k = 1:length(mu_init)
+            comp_pdf = gmm_init.ComponentProportion(k) * normpdf(xg{coeff_num}, mu_init(k), sigma_init(k));
             
             % color by distance metric as before
             c_idx = max(1, round(dm_norm(k) * (size(cmap,1)-1))+1);
             col = cmap(c_idx,:);
         
             % check if this component is in M_comp for this coefficient
-            if ismember(polyID_M{coeff_num}(k), M_comp{coeff_num})
+            if ismember(k, M_comp{coeff_num})
                 lineStyle = '--';  % dotted for excluded/small polynomial
             else
                 lineStyle = '-';   % solid for normal
@@ -671,38 +733,74 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         left_bound  = peak_center - peak_width/2;
         right_bound = peak_center + peak_width/2;
         
+        left_bound_scaled  = peak_center - peak_width*1.2/2;
+        right_bound_scaled = peak_center + peak_width*1.2/2;
+
         % Plot the vertical dotted lines
         yl = ylim(ax2);
         plot(ax2, [left_bound left_bound], yl, 'k--', 'LineWidth', 1);
         plot(ax2, [right_bound right_bound], yl, 'k--', 'LineWidth', 1);
+        plot(ax2, [left_bound_scaled left_bound_scaled], yl, 'r--', 'LineWidth', 1);
+        plot(ax2, [right_bound_scaled right_bound_scaled], yl, 'r--', 'LineWidth', 1);
         text(ax2,mean(xg{coeff_num})*0.65, max(pg{coeff_num})*1.05, sprintf('MSE = %.4f', mse_vals(coeff_num)),...
         'HorizontalAlignment','center','FontSize',10,'FontWeight','bold');
         
+
         title(ax2, sprintf('PDF for coeff: %d', coeff_num));
         legend(ax2,'kde','pdf','','','','','','','location','best');
         hold(ax2,'off')
 
-        [w_sort,w_sort_idx] = sort(w,'descend');
-        info_str = cell(length(mu)+1,1);
-        info_str{1} = sprintf('Poly |   Mean   |   Std   | Weight |');
-        for k = 1:length(mu)
+        [w_sort, w_sort_idx] = sort(w_init,'descend');
+        info_str = cell(length(mu_init),1);
+        color_str = cell(length(mu_init),1);
+        
+        for k = 1:length(mu_init)
             k_sort = w_sort_idx(k);
-            info_str{k+1} = sprintf('%4d | %7.3f | %7.3f | %6.3f |', ...
-                polyID_M{coeff_num}(k_sort), mu(k_sort), sigma(k_sort), w_sort(k));
+            info_str{k} = sprintf('%4d | %7.3f | %7.3f | %6.3f |', ...
+                k_sort, mu_init(k_sort), sigma_init(k_sort), w_sort(k));
+        
+            % Color logic
+            if ismember(k_sort, polyID_M{coeff_num})
+                color_str{k} = 'k';  % kept
+                if ismember(k_sort, M_comp{coeff_num})
+                    color_str{k} = 'b';  % mid
+                end
+            else
+                color_str{k} = 'r';  % excluded
+            end
         end
         
-        % Adjust font size based on number of components
-        if length(mu) > 5
+        % Font size
+        if length(mu_init) > 5
             font_size = 8;
         else
             font_size = 10;
         end
         
-        text(ax_table, 0.05, 0.95, info_str, 'Units', 'normalized', ...
-            'HorizontalAlignment', 'left', 'VerticalAlignment', 'top', ...
-            'FontName', 'Courier', 'FontSize', font_size, ...
-            'BackgroundColor', 'white', 'EdgeColor', 'black', 'Margin', 2);
+        % Layout
+        y_header = 0.95;
+        y_bottom = 0.05;
+        y_step = (y_header - y_bottom) / (length(mu_init) + 1);
+
+        
+        % --- Header ---
+        text(ax_table, 0.05, y_header, 'Poly |   Mean   |   Std   | Weight |', ...
+             'Units', 'normalized', 'HorizontalAlignment', 'left', ...
+             'VerticalAlignment', 'top', 'FontName', 'Courier', ...
+             'FontSize', font_size, 'FontWeight', 'bold', 'Color', 'k');
+        
+        % --- Each row with color ---
+        for k = 1:length(mu_init)
+            y = y_header - k * y_step;
+            text(ax_table, 0.05, y, info_str{k}, ...
+                 'Units', 'normalized', 'HorizontalAlignment', 'left', ...
+                 'VerticalAlignment', 'top', 'FontName', 'Courier', ...
+                 'FontSize', font_size, 'Color', color_str{k});
+        end
+        
         axis(ax_table, 'off');
+
+
 
         % Determine number of elements in this row
         numVals = min([length(k_Mat{coeff_num}), length(medD_sortAll{coeff_num}), length(medD_sIdxAll{coeff_num})]);
@@ -714,7 +812,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         text(ax_table2, 0.05, 0.95, info_str2{1}, 'Units', 'normalized', ...
             'HorizontalAlignment', 'left', 'VerticalAlignment', 'top', ...
             'FontName', 'Courier', 'FontSize', font_size, ...
-            'BackgroundColor', 'white');
+            'BackgroundColor', 'white', 'Color', color_str{k});
         
         % Vertical position for first row
         y_pos = 0.95;

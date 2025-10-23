@@ -119,6 +119,15 @@ function M = GMM_basic1D(x,par)
 
     
     
+    xg = linspace(min(x), max(x), Mgrid).';
+    pg = pdf(g, xg);
+
+    [pk_vals, pk_locs, pk_widths] = findpeaks(pg, xg, 'WidthReference', 'halfheight');
+    [~, tallest_idx] = max(pk_vals);
+    main_peak_center = pk_locs(tallest_idx);
+    main_peak_width  = pk_widths(tallest_idx);
+    left_bound  = main_peak_center - main_peak_width/2;
+    right_bound = main_peak_center + main_peak_width/2;
 
     keep = a > 0.005;   %way to make sure it is not isolated % 2.5% cutoff
     mu = mu(keep);
@@ -130,40 +139,31 @@ function M = GMM_basic1D(x,par)
     s_new = reshape(s.^2, 1, 1, Knew);
 
     g_filt = gmdistribution(mu,s_new,a_new);
+    pg = pdf(g, xg);
 
-    xg = linspace(min(x), max(x), Mgrid).';
-    pg = pdf(g_filt, xg);
     pgmax = max(pg);
     dx = mean(diff(xg));
-
-    [pk_vals, pk_locs, pk_widths] = findpeaks(pg, xg, 'WidthReference', 'halfheight');
-    [~, tallest_idx] = max(pk_vals);
-    main_peak_center = pk_locs(tallest_idx);
-    main_peak_width  = pk_widths(tallest_idx);
-    left_bound  = main_peak_center - main_peak_width/2;
-    right_bound = main_peak_center + main_peak_width/2;
     
-    [a_sort,a_idx] = sort(a,'descend');
-    dropThreshold = 4;
-    a_drops = (a_sort(1:end-1)-a_sort(2:end))*100;
-    a_cutoff = find(a_drops > dropThreshold,1);
+    % [a_sort,a_idx] = sort(a,'descend');
+    % dropThreshold = 4;
+    % a_drops = (a_sort(1:end-1)-a_sort(2:end))*100;
+    % a_cutoff = find(a_drops > dropThreshold,1);
+    % 
+    % if isempty(a_cutoff) || isnan(a_cutoff)
+    %     % if no cutoff found, take top 3 instead
+    %     topN = min(3, numel(a_sort));
+    %     a_top_idx = a_idx(1:topN);
+    % else
+    %     a_top_idx = a_idx(1:min(a_cutoff, numel(a_sort)));
+    % end
+ %   mu_top = mu(a_top_idx);
 
-    if isempty(a_cutoff) || isnan(a_cutoff)
-        % if no cutoff found, take top 3 instead
-        topN = min(3, numel(a_sort));
-        a_top_idx = a_idx(1:topN);
-        a_top = a_sort(1:topN);
-    else
-        a_top_idx = a_idx(1:min(a_cutoff, numel(a_sort)));
-        a_top = a_sort(1:min(a_cutoff, numel(a_sort)));
-    end
-    mu_top = mu(a_top_idx);
-    in_main_peak = (mu_top >= left_bound) & (mu_top <= right_bound);
-    a_top_idx = a_top_idx(in_main_peak);
+
+    in_main_peak = (mu >= left_bound) & (mu <= right_bound);
+    a_top_idx = find(in_main_peak);
     mu_sort = mu(a_top_idx);
     s_sort = s(a_top_idx);
     polyID_M = polyID(a_top_idx);
-   % a_top = a_sort(1:3);
     M_pdf = 0;
     a_top = a(a_top_idx);
     % combine biggest functions for consolidation metric
