@@ -1,4 +1,4 @@
-function [g,g_filt,xg,pg,coeffs,medDist,best_values,summary_out] = GMM_full(spikes,par)
+function [g,xg,pg,coeffs,medDist,summary_out] = GMM_full(spikes,par)
     coeffs = haar_coeffs(spikes,par);
  
 
@@ -8,11 +8,10 @@ function [g,g_filt,xg,pg,coeffs,medDist,best_values,summary_out] = GMM_full(spik
     medDist = cell(2,m);
 
     g      = cell(1,m); 
-    g_filt = cell(1,m);         
     xg     = cell(1,m);           
     pg     = cell(1,m);           
 
-    summary_gmm = cell(21,m);
+    summary_gmm = cell(10,m);
 
     coeff_interest = 1;
     for j = 1:m
@@ -24,25 +23,14 @@ function [g,g_filt,xg,pg,coeffs,medDist,best_values,summary_out] = GMM_full(spik
 
         summary_gmm{1,j} = j;
         summary_gmm{2,j} = Mj.dist_kj;
-        summary_gmm{3,j} = kj_max(1);
-        summary_gmm{4,j} = median(Mj.dist_kj);
-        summary_gmm{5,j} = kj_idx(1:2);
-        summary_gmm{6,j} = Mj.Dij;
-        summary_gmm{7,j} = Mj.Idist;
-        summary_gmm{8,j} = Mj.med_dist;
-        summary_gmm{9,j} = Mj.mu_mpdf;
-        summary_gmm{10,j} = Mj.s_mpdf;
-        summary_gmm{11,j} = Mj.Kpeaks;
-        summary_gmm{12,j} = Mj.peak_x;
-        summary_gmm{13,j} = Mj.Kinfl;
-        summary_gmm{14,j} = Mj.inf_x;
-        summary_gmm{15,j} = Mj.Ipeak;
-        summary_gmm{16,j} = Mj.Iinf;
-        summary_gmm{17,j} = Mj.g.mu;
-        summary_gmm{18,j} = Mj.g.Sigma;
-        summary_gmm{19,j} = Mj.weights;
-        summary_gmm{20,j} = Mj.Mcompon;
-        summary_gmm{21,j} = Mj.polyID;
+        summary_gmm{3,j} = Mj.Dij;
+        summary_gmm{4,j} = Mj.med_dist;
+        summary_gmm{5,j} = Mj.mu_mpdf;
+        summary_gmm{6,j} = Mj.s_mpdf;
+        summary_gmm{7,j} = Mj.g.mu;
+        summary_gmm{8,j} = Mj.g.Sigma;
+        summary_gmm{9,j} = Mj.Mcompon;
+        summary_gmm{10,j} = Mj.polyID;
 
 
         medDist{1,j} = Mj.med_dist;
@@ -50,50 +38,18 @@ function [g,g_filt,xg,pg,coeffs,medDist,best_values,summary_out] = GMM_full(spik
 
 
         g{j}       = Mj.g;
-        g_filt{j}  = Mj.g_filt;
         xg{j}      = Mj.xg;
         pg{j}      = Mj.pg;
-
-        if Mj.interest_med
-            coeff_out(coeff_interest) = j;
-            Idist_win(coeff_interest) = Mj.Idist;
-            medPoly(coeff_interest) = Mj.comp_medMax;
-            intrst_med(coeff_interest) = Mj.interest_med;
-            coeff_interest =1+coeff_interest;
-        end
 
     end
     medDist = medDist';
 
-    best_values = table(coeff_out',Idist_win',medPoly', ...
-        intrst_med', ...
-        'VariableNames',{'coefficients',...
-        'Idist', ...
-        'polynomial Idist', ...
-        'Idist max >> med'});
     summary_gmm = summary_gmm';
     summary_out = cell2table(summary_gmm,'VariableNames', {'coeff num', 'kj', ...
-        'max kj', 'med kj','poly 2 kj(2 max)','Dij','idist', ...
-        'med idist','mpdf mu','mpdf std','kpeaks','peak x', ...
-        'kinf','inf x','ipeak','iinf','mu gmm','std gmm','weights','M_comp', ...
+        'Dij', ...
+        'med idist','mpdf mu','mpdf std','mu gmm','std gmm','M_comp', ...
         'polyID'});
     
-    %     %metric for if unimodal or non
-    % [max_idist,pIdistMax] = max(Idist);
-    % [max_idistMed,pIdist_Med_Max] = max(Idist_med);
-    % 
-    % [med_idist,pIdistMed_tot] = median(Idist);
-    % [med_idistMed,pIdistMedMed] = median(Idist_med);
-    % 
-    % if max_idist > 2*med_idist
-    % 
-    % end
-    % 
-    % if max(Idist_med) > 2*median(Idist_med)
-    % 
-    % 
-    % end
-  %  summary_table = [1:numel(coeffs)
 end
 
 function M = GMM_basic1D(x,par)
@@ -129,20 +85,7 @@ function M = GMM_basic1D(x,par)
     left_bound  = main_peak_center - main_peak_width/2;
     right_bound = main_peak_center + main_peak_width/2;
 
-    keep = a > 0.005;   %way to make sure it is not isolated % 2.5% cutoff
-    mu = mu(keep);
-    s  = s(keep);
-    a  = a(keep);
-    polyID = polyID(keep);
-    Knew = numel(mu);               % actual surviving components
-    a_new = a / sum(a);
-    s_new = reshape(s.^2, 1, 1, Knew);
 
-    g_filt = gmdistribution(mu,s_new,a_new);
-    pg = pdf(g, xg);
-
-    pgmax = max(pg);
-    dx = mean(diff(xg));
     
     % [a_sort,a_idx] = sort(a,'descend');
     % dropThreshold = 4;
@@ -176,15 +119,8 @@ function M = GMM_basic1D(x,par)
      end
 
 
-    if Knew == 0
-        mu_new = mean(x);
-        s_new  = std(x) + eps;
-        a_new  = 1;
-        Knew = 1;
-    end
-
-
-
+    pgmax = max(pg);
+    dx = mean(diff(xg));
 
     % local maxima for peak detection (alternative) but can return
     % prominence, and input minProminence metric. paper uses crit pts of
@@ -227,8 +163,8 @@ function M = GMM_basic1D(x,par)
     isInfl = false(size(pg));
     isInfl(2:end) = infl;                      % mark right endpoint
 
-    Ipeak = sum(pg(isPeak)) / pgmax;
-    Iinf  = sum(pg(isInfl)) / pgmax;
+    Knew = numel(mu);               % actual surviving components
+
 
     [II,JJ] = find(triu(true(Knew),1));
 
@@ -236,30 +172,18 @@ function M = GMM_basic1D(x,par)
     std_M = sqrt(sum((xg - mu_M).^2 .* M_pdf) / sum(M_pdf));
     kj = abs(mu - mu_M)/std_M;
     
-    if Knew > 1
-        Dij = (abs(mu(II) - mu(JJ))).* sqrt(a(II) .* a(JJ)) ...
-                ./sqrt(s(II) .* s(JJ));
-        dist_per_comp = accumarray([II; JJ], [Dij; Dij], [K 1], @(v){v}, {});
-        %avg_dist = cellfun(@mean, dist_per_comp);
-        med_dist = cellfun(@median,dist_per_comp);
-        %formally idist = median(dij)
-        % [~, comp_max] = max(avg_dist);
-        % Idist = mean(maxk(avg_dist,2));
-        %[Idist, comp_max] = max(avg_dist);
-        [Idist,comp_medMax] = max(med_dist);
-    else
-        Dij = [];  % nothing to compare if only one component remains
-        avg_dist = 0; med_dist = 0;
-        Idist_val = 0; Idist_med_val = 0;
-        %comp_max = 1; 
-        comp_medMax = 1;
-    end
+    Dij = (abs(mu(II) - mu(JJ))).* sqrt(a(II) .* a(JJ)) ...
+            ./sqrt(s(II) .* s(JJ));
+    dist_per_comp = accumarray([II; JJ], [Dij; Dij], [K 1], @(v){v}, {});
+    %avg_dist = cellfun(@mean, dist_per_comp);
+    med_dist = cellfun(@median,dist_per_comp);
+    %formally idist = median(dij)
+    % [~, comp_max] = max(avg_dist);
+    % Idist = mean(maxk(avg_dist,2));
+    %[Idist, comp_max] = max(avg_dist);
+    [Idist,comp_medMax] = max(med_dist);
 
-    if Idist > 1.55*min(med_dist)
-        coeff_oInter = 1;
-    else
-        coeff_oInter = 0;
-    end
+
 
     % if Idist_med > 1.55*min(med_dist)
     %     coeff_oInterMed = 1;
@@ -267,24 +191,15 @@ function M = GMM_basic1D(x,par)
     %     coeff_oInterMed = 0;
     % end
     % Package extras
-    peak_x  = xg(isPeak);
-    inf_x   = xg(isInfl);
-    Kpeaks  = numel(peak_x);
-    Kinfl = numel(inf_x);
+
 
     %output idist max and poly from max idist
 
-    M = struct('Ipeak',Ipeak, ...
-           'Iinf',Iinf, ...
-           'Dij',Dij, ...
-           'Idist',Idist, ...
-           'g',g,'g_filt',g_filt, 'xg',xg, 'pg',pg, ...
-           'Kpeaks',Kpeaks, 'peak_x',peak_x, ...
-           'inf_x',inf_x,'Kinfl',Kinfl, ...
+    M = struct('Dij',Dij, ...
+           'g',g,'xg',xg, 'pg',pg, ...
             'med_dist',med_dist, ...
             'comp_medMax',comp_medMax, ...
-            'interest_med',coeff_oInter, ...
-            'dist_kj',kj,'mu_mpdf',mu_M,'s_mpdf',std_M,'weights',a_new,'Mcompon', polyID_M, ...
+            'dist_kj',kj,'mu_mpdf',mu_M,'s_mpdf',std_M,'Mcompon', polyID_M, ...
             'polyID',polyID);
 end
 

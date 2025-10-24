@@ -1,4 +1,4 @@
-function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,all_ks,cluster_times,coeff_vector, inputFile,g_init)
+function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,all_ks,cluster_times,coeff_vector, inputFile)
     %each norm gets one value
     %figures show how value interacts
     %gigure out how to remove gmm outlier
@@ -12,6 +12,60 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     % graphs should show ranked plot of all k and idist
     % their comp values should also be present either on the x or form an 
     % annotation.
+    %% filter GMM results by weight (K, M_comp, medDist, polyID_M)
+    g_init = cell(1,length(g));
+    medDist_cell = cell(1,length(g));
+    kj_mat = cell(1,length(g));
+    M_comp = cell(1,length(g));
+    polyID = cell(1,length(g));
+    medD_sortAll = cell(1,length(g));
+    medD_sIdxAll = cell(1,length(g));
+    kj_sortAll = cell(1,length(g));
+    kj_sIdxAll = cell(1,length(g));
+
+    idistVals = zeros(length(g),1);
+    max_k = zeros(length(g),1);
+
+    medDist_init = summary_table.("med idist");
+    Mcomp_init = summary_table.M_comp;
+    kj_init = summary_table.kj;
+    g_init = g;
+
+    for i = 1:length(g)
+        g_in = g{i};
+        mu = g_in.mu(:);                       
+        s  = sqrt(squeeze(g_in.Sigma(:)));      
+        a  = g_in.ComponentProportion(:);
+        polyID_in = (1:numel(mu))';   % assign original indices from g
+      
+        keep = a > 0.005;   %way to make sure it is not isolated % 2.5% cutoff
+        mu = mu(keep);
+        s  = s(keep);
+        a  = a(keep);
+        polyID{i} = polyID_in(keep);
+        Knew = numel(mu);               % actual surviving components
+        a_new = a / sum(a);
+        s_new = reshape(s.^2, 1, 1, Knew);
+        
+        medDist_cell{i} = medDist_init{i}(keep);
+        kj_mat{i} = kj_init{i}(keep);
+        g{i} = gmdistribution(mu,s_new,a_new);
+        M_comp{i} = Mcomp_init{i}(ismember(Mcomp_init{i},polyID{i}));
+        pg2 = pdf(g{i}, xg{i});
+
+        [medD_sortAll{i},medD_sIdxAll{i}] = sort(medDist_init{i},'Descend');
+        [kj_sortAll{i},kj_sIdxAll{i}] = sort(kj_init{i},'Descend');
+        
+        if Knew > 0
+            idistVals(i) = max(medDist_cell{i});
+            max_k(i) = max(kj_mat{i});
+        end
+
+    end
+
+    
+
+    
     chStr = regexp(inputFile, '\d+', 'match');  % finds all numbers
     channelNum = chStr{2};  
     folderName = sprintf('ch%s', channelNum);
@@ -24,8 +78,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     exc_combPdf = true;
     plot_none = false;
 
-    polyID_M = summary_table.polyID;
-    M_comp = summary_table.M_comp;
+    polyID_M = polyID;
     %%
     % testing channels 332, 337,364,322
     lenKs = length(ks_out(:,1));
@@ -33,8 +86,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     ks_rankNums = flip(ks_out_full(:));
     ks_rankSel = ks_out(:,1);
     
-    idistVals = summary_table.idist;
-    max_k = summary_table.("max kj");
+    % fix 
+
     
     [maxK_sort(:,2),maxK_sort(:,1)] = sort(max_k,"descend");
     
@@ -53,8 +106,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     exportgraphics(fig_k, filename_kv, 'Resolution', 300);
 
 %% mathing top 3 vals
-    maxLen = max(cellfun(@numel, summary_table.kj));
-    kj_mat = summary_table.kj;  % keep as cell, no padding or cell2mat
+    maxLen = max(cellfun(@numel, kj_mat));
     
     % Sort each numeric array in descending order
     k_Mat = cell(size(kj_mat));
@@ -73,7 +125,6 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         k_top3idx(r,1:nTop) = k_sortIdx{r}(1:nTop);
     end
 
-    medDist_cell = summary_table.("med idist");  % make a local variable
     medDist_sort = cell(size(medDist_cell));
     medDist_sortIdx = cell(size(medDist_cell));
     
@@ -94,7 +145,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     end
 %% exclude medDist values that are part of the combined pdf
    if exc_combPdf
-        numRows = numel(summary_table.M_comp);
+        numRows = numel(M_comp);
         
         medDist_sort_masked    = cell(size(medDist_sort));
         medDist_sortIdx_masked = cell(size(medDist_sortIdx));
@@ -102,7 +153,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         for r = 1:numRows
             vals = medDist_sort{r};
             ids  = medDist_sortIdx{r};
-            idx_exclude = summary_table.M_comp{r};  % indices to exclude
+            idx_exclude = M_comp{r};  % indices to exclude
             
             mask = ~ismember(ids, idx_exclude) & ~isnan(vals);
             
@@ -111,8 +162,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         end
         
         % Replace originals
-        medD_sortAll = medDist_sort;
-        medD_sIdxAll = medDist_sortIdx;
+
         medDist_sort    = medDist_sort_masked;
         medDist_sortIdx = medDist_sortIdx_masked;
 
@@ -156,12 +206,6 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
             comp_sharedIdx(r) = 0;
         end
     end
-
-    %% use rankings for M comparison
-
-    %% use weights of components
-
-    %% rank and weights?
 
 
    %% first coeff comparison plot colors
@@ -219,13 +263,72 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
          end
      end
     
+     %% idist selection criteria
+% --- Sort IDist values ascending and store full list ---
+    [sorted_idist, ind_idist] = sort(idist_kmatch);  
 
-    %% coeff plots side by side
+    % --- Keep only top maxIdist candidates for knee detection ---
+    minIdist = 1;
+    maxIdist = 30;
+    top_candidates = sorted_idist(end-maxIdist+1:end);
+    top_indices    = ind_idist(end-maxIdist+1:end);
+    
+    ncoeff = length(sorted_idist);
+    maxA_idist = max(sorted_idist);
+    
+    % --- Sliding-window slope computation ---
+    nd = 10;
+    if ncoeff >= nd
+        d_idist = (top_candidates(nd:end) - top_candidates(1:end-nd+1)) ...
+                   / maxA_idist * ncoeff / nd;
+        all_above1_idist = find(d_idist >= 1);
+    else
+        all_above1_idist = [];
+    end
+    
+    % --- Knee detection ---
+    if numel(all_above1_idist) >= 2
+        aux2_idist = diff(all_above1_idist);
+        temp_bla_idist = conv(aux2_idist(:), [1 1 1]/3);   % smooth differences
+        temp_bla_idist = temp_bla_idist(2:end-1);
+        temp_bla_idist(1) = aux2_idist(1);
+        temp_bla_idist(end) = aux2_idist(end);
+    
+        % First position where 3 consecutive differences == 1
+        thr_knee_diff_idist = all_above1_idist(find(temp_bla_idist(2:end) == 1, 1)) + nd/2;
+    
+        % Number of inputs to select
+        inputs_idist = maxIdist - thr_knee_diff_idist + 1;
+    else
+        % Fallback if no steep slope detected
+        inputs_idist = minIdist;
+    end
+    
+    % --- Select top coefficients ---
+    coeff_idist = top_indices(end:-1:end-inputs_idist+1);   % descending order
+    idist_select(:,1) = coeff_idist;                           % coefficient indices
+    idist_select(:,2) = idist_kmatch(coeff_idist);            % corresponding IDist values
+    
+    idist_kmatch_lSel = length(idist_select(:,1));
+
+    %% coeff plots side by side   
     fig_idist = figure;
-    plot(idist_sort(:,2))
+    r_sorted_idist = flip(sorted_idist);
+    r_ind_idist = flip(ind_idist);
+    plot(r_sorted_idist)
     title("idist vals per coeff")
-    for k = 1:length(idist_sort(:,2))
-       text(k+0.1,idist_sort(k,2)+0.1,num2str(idist_sort(k,1)),"Color",'b'); 
+
+
+    hold on
+    for k = 1:length(r_sorted_idist)
+        if k <= idist_kmatch_lSel  % Below x=13 - use dots
+            plot(k, r_sorted_idist(k), 'bo', 'MarkerSize', 6, 'MarkerFaceColor','b');
+        else  % Above or at x=13 - use x markers
+            plot(k, r_sorted_idist(k), 'bx', 'MarkerSize', 8, 'LineWidth', 1.5);
+        end
+    end
+    for k = 1:length(r_sorted_idist)
+       text(k+0.1,r_sorted_idist(k)+0.1,num2str(r_ind_idist(k)),"Color",'b'); 
     end
     hold on;
     ks_d = flip(ks_out_full);
@@ -233,9 +336,6 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     yyaxis right;
     plot(ks_y)
     hold on
-
-    
-    %% coeff scatter plot 1 - max values//color per matches
     
     % Add scatter points with different markers based on x-position
     for k = 1:length(ks_y)
@@ -253,13 +353,24 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     end
     
     % Add vertical line at x=13
-    xline(lenKs, '--', 'Color', 'k', 'LineWidth', 0.5, 'Alpha', 0.7);
+    xline(lenKs, '--', 'Color', 'red', 'LineWidth', 0.5, 'Alpha', 0.7);
+    xline(idist_kmatch_lSel, '--', 'Color', 'blue', 'LineWidth', 0.5, 'Alpha', 0.7);
+
+    % Match types (colors)
+    h_match(1) = plot(NaN, NaN, 'b-', 'DisplayName', 'IDIST');          % blue line
+    h_match(2) = plot(NaN, NaN, 'Color', [1 0.5 0], 'LineStyle', '-', ...
+                      'DisplayName', 'K');                               % orange line
+    h_match(3) = scatter(NaN, NaN, 80, 'k', 'filled', 'DisplayName', 'Selected');  % filled dot
+    h_match(4) = scatter(NaN, NaN, 80, 'kx', 'DisplayName', 'Not selected');       % X marker
     
+    legend(h_match, 'Location', 'best');
+
     hold off;
     filename_IDKScoeff = fullfile(folderName,sprintf('ch%s_IDKScoeff.png', channelNum));
     exportgraphics(fig_idist, filename_IDKScoeff, 'Resolution', 300);
-        % scatter plot of both 
     
+    %%
+    % scatter plot of both 
     fig_maxIDvKS = figure;
     hold on;
     
@@ -316,53 +427,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     hold off;
     filename_MaxIDvKS = fullfile(folderName,sprintf('ch%s_MaxIDvKS.png', channelNum));
     exportgraphics(fig_maxIDvKS, filename_MaxIDvKS, 'Resolution', 300);
-%% idist selection criteria
-% --- Sort IDist values ascending and store full list ---
-    [sorted_idist, ind_idist] = sort(idist_kmatch);  
 
-    % --- Keep only top maxIdist candidates for knee detection ---
-    minIdist = 10;
-    maxIdist = 30;
-    top_candidates = sorted_idist(end-maxIdist+1:end);
-    top_indices    = ind_idist(end-maxIdist+1:end);
-    
-    ncoeff = length(top_candidates);
-    maxA_idist = max(top_candidates);
-    
-    % --- Sliding-window slope computation ---
-    nd = 10;
-    if ncoeff >= nd
-        d_idist = (top_candidates(nd:end) - top_candidates(1:end-nd+1)) ...
-                   / maxA_idist * ncoeff / nd;
-        all_above1_idist = find(d_idist >= 0.5);
-    else
-        all_above1_idist = [];
-    end
-    
-    % --- Knee detection ---
-    if numel(all_above1_idist) >= 2
-        aux2_idist = diff(all_above1_idist);
-        temp_bla_idist = conv(aux2_idist(:), [1 1 1]/3);   % smooth differences
-        temp_bla_idist = temp_bla_idist(2:end-1);
-        temp_bla_idist(1) = aux2_idist(1);
-        temp_bla_idist(end) = aux2_idist(end);
-    
-        % First position where 3 consecutive differences == 1
-        thr_knee_diff_idist = all_above1_idist(find(temp_bla_idist(2:end) == 1, 1)) + nd/2;
-    
-        % Number of inputs to select
-        inputs_idist = maxIdist - thr_knee_diff_idist + 1;
-    else
-        % Fallback if no steep slope detected
-        inputs_idist = minIdist;
-    end
-    
-    % --- Select top coefficients ---
-    coeff_idist = top_indices(end:-1:end-inputs_idist+1);   % descending order
-    idist_out(:,1) = coeff_idist;                           % coefficient indices
-    idist_out(:,2) = idist_kmatch(coeff_idist);            % corresponding IDist values
-    
-    idist_kmatch_lSel = length(idist_out(:,1));
  
 
     %% coefficient plot best idist/kj matching
@@ -404,7 +469,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     grid on;
 
     yline(min(ks_out(:,2)), '--', 'Color', [1 0.5 0], 'LineWidth', 1.5, 'DisplayName', 'KS cutoff');
-    xline(min(idist_out(:,2)), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder');
+    xline(min(idist_select(:,2)), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder');
 
     
     % Match types (colors)
@@ -434,7 +499,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     %find common overlap between k and idist
 %% variable coefficient input
 
-    m_compNumel = cellfun(@numel, summary_table.M_comp);
+    m_compNumel = cellfun(@numel, M_comp);
     m_comp4pls = find(m_compNumel >= 4);
 
     if isempty(coeff_vector)
@@ -481,7 +546,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         mu = gmm_model.mu(:);
         sigma = sqrt(squeeze(gmm_model.Sigma(:)));
         w = gmm_model.ComponentProportion(:);
-        dm = summary_table.("med idist"){coeff_num};
+        dm = medDist_cell{coeff_num};
 
         % initial gmm
         gmm_init = g_init{coeff_num};
@@ -531,8 +596,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
                 mu_bestDist = mu(idx);
                 sigma_bestDist = sigma(idx);
         
-                range_st = mu_bestDist - 3*sigma_bestDist;
-                range_end = mu_bestDist + 3*sigma_bestDist;
+                range_st = mu_bestDist - 2*sigma_bestDist;
+                range_end = mu_bestDist + 2*sigma_bestDist;
         
                 spikeIdx = find(wd_coeff(:,coeff_num) >= range_st & wd_coeff(:,coeff_num) <= range_end);
                 
@@ -824,7 +889,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
 
         % Determine number of elements in this row
-        numVals = min([length(k_Mat{coeff_num}), length(medD_sortAll{coeff_num}), length(medD_sIdxAll{coeff_num})]);
+        numVals = min([length(kj_init{coeff_num}), length(medD_sortAll{coeff_num}), length(medD_sIdxAll{coeff_num})]);
         col_x = [0.02, 0.41, 0.58];
         info_str2 = cell(numVals+1,1);
         info_str2{1} = sprintf('K_Values | K_Values_IDX | MedDist | MedI_IDX    ');
@@ -842,24 +907,27 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         else
             line_spacing = 0.035;
         end
-        
         y_pos = y_start;
         for kk = 1:numVals
-            k_val = k_Mat{coeff_num}(kk);
-            k_idx = k_sortIdx{coeff_num}(kk);
+            k_val = kj_sortAll{coeff_num}(kk);
+            k_idx = kj_sIdxAll{coeff_num}(kk);
             med_val = medD_sortAll{coeff_num}(kk);
             med_idx = medD_sIdxAll{coeff_num}(kk);
         
-            if ismember(k_idx, summary_table.M_comp{coeff_num})
-                color_k = 'r';
-            else
+            if ismember(k_idx, M_comp{coeff_num})
+                color_k = 'b';
+            elseif ismember(k_idx,polyID_M{coeff_num})
                 color_k = 'k';
+            else
+                color_k = 'r';
             end
         
-            if ismember(med_idx, summary_table.M_comp{coeff_num})
-                color_md = 'r';
-            else
+            if ismember(med_idx, M_comp{coeff_num})
+                color_md = 'b';
+            elseif ismember(med_idx,polyID_M{coeff_num})
                 color_md = 'k';
+            else
+                'r';
             end
         
             y_pos = y_pos - line_spacing;
