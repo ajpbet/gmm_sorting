@@ -43,12 +43,14 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     % change for idist over ks over lay ii double plot
     % need to lable
-    figure;
+    fig_k = figure;
     plot(maxK_sort(:,2))
     title(" max k vals per coeff")
     for k = 1:length(maxK_sort(:,2))
        text(k+0.1,maxK_sort(k,2)+0.1,num2str(maxK_sort(k,1))); 
     end
+    filename_kv = fullfile(folderName,sprintf('ch%s_maxKvalsPerCoef.png', channelNum));
+    exportgraphics(fig_k, filename_kv, 'Resolution', 300);
 
 %% mathing top 3 vals
     maxLen = max(cellfun(@numel, summary_table.kj));
@@ -219,7 +221,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     
 
     %% coeff plots side by side
-    figure;
+    fig_idist = figure;
     plot(idist_sort(:,2))
     title("idist vals per coeff")
     for k = 1:length(idist_sort(:,2))
@@ -231,6 +233,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     yyaxis right;
     plot(ks_y)
     hold on
+
+    
     %% coeff scatter plot 1 - max values//color per matches
     
     % Add scatter points with different markers based on x-position
@@ -252,9 +256,11 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     xline(lenKs, '--', 'Color', 'k', 'LineWidth', 0.5, 'Alpha', 0.7);
     
     hold off;
-
+    filename_IDKScoeff = fullfile(folderName,sprintf('ch%s_IDKScoeff.png', channelNum));
+    exportgraphics(fig_idist, filename_IDKScoeff, 'Resolution', 300);
         % scatter plot of both 
-    figure;
+    
+    fig_maxIDvKS = figure;
     hold on;
     
     % Top 13 KS coefficients are the first 13 since ks_y is sorted
@@ -308,7 +314,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     
     legend([h_match, h_ks], 'Location', 'best');
     hold off;
-    
+    filename_MaxIDvKS = fullfile(folderName,sprintf('ch%s_MaxIDvKS.png', channelNum));
+    exportgraphics(fig_maxIDvKS, filename_MaxIDvKS, 'Resolution', 300);
 %% idist selection criteria
 % --- Sort IDist values ascending and store full list ---
     [sorted_idist, ind_idist] = sort(idist_kmatch);  
@@ -360,7 +367,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     %% coefficient plot best idist/kj matching
 
-    figure;
+    fig1st_idistKmatch = figure;
     hold on;
       
     % For each coefficient, plot IDist (x) vs KS (y)
@@ -414,7 +421,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     
     legend([h_match, h_ks], 'Location', 'best');
     hold off;
-
+    filename_idistKmatch = fullfile(folderName,sprintf('ch%s_idistKmatch.png', channelNum));
+    exportgraphics(fig1st_idistKmatch, filename_idistKmatch, 'Resolution', 300);
 
 
     %% code continues
@@ -467,7 +475,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         ax2 = subplot(2,4,[5 6]);
         ax_table = subplot(2,4,[3 4]);
         ax_table2 = subplot(2,4,[7 8]);
-        
+
         % Your GMM model code
         gmm_model = g{coeff_num};
         mu = gmm_model.mu(:);
@@ -487,7 +495,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         % Check if we need a popup figure BEFORE the loop
         if nnz(comp_shared(coeff_num,:)) > 1 || plot_all
             popupFig = figure('Name', sprintf('Coeff %d extended spikes', coeff_num), ...
-                             'NumberTitle', 'off', 'Position', [150, 150, 1000, 600]);
+                             'NumberTitle', 'off', 'Position', [150, 150, 1000, 600], ...
+                             'Visible','off');
             % Create subplots for popup figure
             axn = cell(1, 3);
             axn{1} = subplot(1,3,1);
@@ -627,7 +636,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         end
         
         filename_spike = fullfile(folderName,sprintf('ch%s_coeff%02d_spikes.png', channelNum, coeff_num));
-      %  exportgraphics(popupFig, filename_spike, 'Resolution', 300);
+        exportgraphics(popupFig, filename_spike, 'Resolution', 300);
         figure(fig);
         % >>> detect critical points on KDE (peaks & inflection) <<<
         xx_kde = xg{coeff_num}(:);
@@ -742,7 +751,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         plot(ax2, [right_bound right_bound], yl, 'k--', 'LineWidth', 1);
         plot(ax2, [left_bound_scaled left_bound_scaled], yl, 'r--', 'LineWidth', 1);
         plot(ax2, [right_bound_scaled right_bound_scaled], yl, 'r--', 'LineWidth', 1);
-        text(ax2,mean(xg{coeff_num})*0.65, max(pg{coeff_num})*1.05, sprintf('MSE = %.4f', mse_vals(coeff_num)),...
+        text(ax2,mean(xg{coeff_num})*0.75, max(pg{coeff_num})*1.07, sprintf('MSE = %.4f', mse_vals(coeff_num)),...
         'HorizontalAlignment','center','FontSize',10,'FontWeight','bold');
         
 
@@ -776,7 +785,19 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         else
             font_size = 10;
         end
+        % Choose a consistent right-hand column area for both tables
+        left_col = 0.55;    % left edge of the right column
+        col_width = 0.2;   % width of the right column
+        top_margin = 0.95;
+        bottom_margin = 0.05;
         
+        % Create axes and set explicit positions (normalized figure units)
+        ax_table  = subplot(2,4,[3 4]);           % keep if you rely on subplot layout
+        ax_table.Position = [left_col, 0.55, col_width, 0.40];  % adjust top half position
+        
+        ax_table2 = subplot(2,4,[7 8]);          % keep subplot mapping
+        ax_table2.Position = [left_col, 0.05, col_width, 0.40]; % bottom half position
+
         % Layout
         y_header = 0.95;
         y_bottom = 0.05;
@@ -804,28 +825,31 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
         % Determine number of elements in this row
         numVals = min([length(k_Mat{coeff_num}), length(medD_sortAll{coeff_num}), length(medD_sIdxAll{coeff_num})]);
-        
+        col_x = [0.02, 0.41, 0.58];
         info_str2 = cell(numVals+1,1);
-        info_str2{1} = sprintf('K_Values | K_Values_IDX | MedDist | MedI_IDX');
+        info_str2{1} = sprintf('K_Values | K_Values_IDX | MedDist | MedI_IDX    ');
         
         % Display header in black
-        text(ax_table2, 0.05, 0.95, info_str2{1}, 'Units', 'normalized', ...
+        text(ax_table2, col_x(1), 0.95, info_str2{1}, 'Units', 'normalized', ...
             'HorizontalAlignment', 'left', 'VerticalAlignment', 'top', ...
             'FontName', 'Courier', 'FontSize', font_size, ...
-            'BackgroundColor', 'white', 'Color', color_str{k});
+            'BackgroundColor', 'white', 'Color', 'k');
         
-        % Vertical position for first row
-        y_pos = 0.95;
-        line_spacing = 0.035; % adjust as needed
+        y_start = 0.92;
+        available_height = y_start - 0.05; % bottom margin
+        if numVals > 0
+            line_spacing = min(0.035, available_height/(numVals+1)); % prevents overflow
+        else
+            line_spacing = 0.035;
+        end
         
-        for k = 1:numVals
-            % Get current values
-            k_val = k_Mat{coeff_num}(k);
-            k_idx = k_sortIdx{coeff_num}(k);
-            med_val = medD_sortAll{coeff_num}(k);
-            med_idx = medD_sIdxAll{coeff_num}(k);
+        y_pos = y_start;
+        for kk = 1:numVals
+            k_val = k_Mat{coeff_num}(kk);
+            k_idx = k_sortIdx{coeff_num}(kk);
+            med_val = medD_sortAll{coeff_num}(kk);
+            med_idx = medD_sIdxAll{coeff_num}(kk);
         
-            % Check if excluded
             if ismember(k_idx, summary_table.M_comp{coeff_num})
                 color_k = 'r';
             else
@@ -838,24 +862,24 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
                 color_md = 'k';
             end
         
-            % Increment vertical position
             y_pos = y_pos - line_spacing;
         
-            % Display K values
-            text(ax_table2, 0.05, y_pos, sprintf('%7.3f | %10d |', k_val, k_idx), ...
+            text(ax_table2,col_x(1), y_pos, sprintf('%7.3f | %9d |', k_val, k_idx), ...
                 'Units', 'normalized', 'HorizontalAlignment', 'left', ...
                 'VerticalAlignment', 'top', 'FontName', 'Courier', 'FontSize', font_size, ...
                 'Color', color_k);
         
-            % Display MedDist values next to it
-            text(ax_table2, 0.25, y_pos, sprintf(' %7.3f | %7d ', med_val, med_idx), ...
+            text(ax_table2, col_x(2), y_pos, sprintf(' %4.3f | %2d     ', med_val, med_idx), ...
                 'Units', 'normalized', 'HorizontalAlignment', 'left', ...
                 'VerticalAlignment', 'top', 'FontName', 'Courier', 'FontSize', font_size, ...
                 'Color', color_md);
         end
+        axis(ax_table2, 'off');        
+
+        drawnow;
+
         filename_pdf = fullfile(folderName,sprintf('ch%s_coeff%02d_pdf.png', channelNum, coeff_num));
-        %exportgraphics(fig, filename_pdf, 'Resolution', 300);
-        axis(ax_table2, 'off');
+        exportgraphics(fig, filename_pdf, 'Resolution', 300);
     end
 end
 
