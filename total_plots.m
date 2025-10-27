@@ -12,6 +12,14 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     % graphs should show ranked plot of all k and idist
     % their comp values should also be present either on the x or form an 
     % annotation.
+    chStr = regexp(inputFile, '\d+', 'match');  % finds all numbers
+    channelNum = chStr{2};  
+    folderName = sprintf('ch%s', channelNum);
+    if ~exist(folderName, 'dir')
+        mkdir(folderName);
+    end
+
+
     %% filter GMM results by weight (K, M_comp, medDist, polyID_M)
     g_init = cell(1,length(g));
     medDist_cell = cell(1,length(g));
@@ -66,12 +74,10 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     
 
     
-    chStr = regexp(inputFile, '\d+', 'match');  % finds all numbers
-    channelNum = chStr{2};  
-    folderName = sprintf('ch%s', channelNum);
-    if ~exist(folderName, 'dir')
-        mkdir(folderName);
-    end
+
+
+    %% plot k values in a table with all coefficeints
+    tab_gauss(summary_table);
 
     %% plot only good coeffs or plot top coeffs
     plot_all = true;
@@ -238,6 +244,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
      color_idistk = cell(nRows,1);
      idist_kmatch = zeros(nRows,1);
      ranking_Idist_match = zeros(nRows,1);
+     poly_match_idistK = zeros(nRows,1);
      for i = 1:nRows
         vals = medDist_sort{i};       % numeric array
         ids  = medDist_sortIdx{i};    % numeric array
@@ -247,6 +254,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
             if ismember(ids(j), k_top3idx(i,:)) && ~isnan(vals(j))
                 idist_kmatch(i) = vals(j);
                 ranking_Idist_match(i) = j;
+                poly_match_idistK(i) = ids(j);
                 break;
             end
         end
@@ -489,6 +497,106 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     filename_idistKmatch = fullfile(folderName,sprintf('ch%s_idistKmatch.png', channelNum));
     exportgraphics(fig1st_idistKmatch, filename_idistKmatch, 'Resolution', 300);
 
+        %% best idist and its respective k val
+    fig_idist_kv = figure;
+    title("idist v kv")
+    grid on
+    hold on
+    % For each coefficient, plot IDist (x) vs KS (y)
+    for k = 1:length(r_sorted_idist)
+        coeff_num = r_ind_idist(k);  % Coefficient number from KS ordering
+        gaussWinner = poly_match_idistK(coeff_num);
+        newGaussIdx = find(polyID{coeff_num} == gaussWinner);
+
+
+        kval = kj_mat{coeff_num}(newGaussIdx);
+        if isempty(newGaussIdx)
+            kval = 0;
+        end
+        % Find the IDist value for this coefficient number
+        idist_val = idist_kmatch(coeff_num);
+        
+        % Determine marker based on top 13 KS
+        if k <= idist_kmatch_lSel  % Since ks_y is sorted, first 13 are top
+            % Top 13 KS - use dot
+            marker = 'o';
+            marker_face = color_idistk{coeff_num};
+        else
+            % Not top 13 KS - use x
+            marker = 'x';
+            marker_face = 'none';
+        end
+        
+        % Plot the point
+        scatter(idist_val, kval, 80, color_idistk{coeff_num}, marker, 'LineWidth', 1.5, ...
+                'MarkerFaceColor', marker_face);
+        
+        % Label with coefficient number
+        text(idist_val, kval+0.01, num2str(coeff_num), ...
+             'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
+             'FontSize', 8, 'Color', 'k', 'FontWeight', 'bold');
+    end
+
+    h_k(1) = scatter(NaN, NaN, 80, 'k', 'o', 'filled', 'DisplayName', 'idist selected');
+    h_k(2) = scatter(NaN, NaN, 80, 'k', 'x', 'LineWidth', 1.5, 'DisplayName', 'idist not selected');
+
+    legend(h_k, 'Location', 'best');
+    hold off;
+    xlabel('IDist Values');
+    ylabel('K Values'); 
+    filename_idist_kv = fullfile(folderName,sprintf('ch%s_id_v_kv.png', channelNum));
+    exportgraphics(fig_idist_kv, filename_idist_kv, 'Resolution', 300);
+    
+%% plot all meddist vs k excl. Mcomp
+  
+    fig_meddist_kv = figure;
+    title("meddist vs. kv")
+    grid on
+    hold on
+    % For each coefficient, plot IDist (x) vs KS (y)
+    for k = 1:size(medDist_sortIdx,2)
+        
+        for z = 1:length(medDist_sortIdx{k})
+            if ~isempty(medDist_sortIdx{k})
+                medDist = medDist_sort{k}(z);
+                gaussSelect = medDist_sortIdx{k}(z);
+                gauss_idx = find(polyID{k} == gaussSelect);
+                kv = kj_mat{k}(gauss_idx);
+                % Find the IDist value for this coefficient number
+                
+                % Determine marker based on top 13 KS
+                if ismember(medDist_sortIdx{k}(z),idist_select(:,1))  % Since ks_y is sorted, first 13 are top
+                    % Top 13 KS - use dot
+                    marker = 'o';
+                    marker_face = 'k';
+                else
+                    % Not top 13 KS - use x
+                    marker = 'x';
+                    marker_face = 'none';
+                end
+                
+                % Plot the point
+                scatter(medDist, kv, 80, 'k', marker, 'LineWidth', 1.5, ...
+                        'MarkerFaceColor', marker_face);
+                
+                % Label with coefficient number
+                text(medDist, kv+0.4, num2str(k), ...
+                     'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
+                     'FontSize', 8, 'Color', 'k', 'FontWeight', 'bold');
+            end
+        end
+    end
+
+    h_mk(1) = scatter(NaN, NaN, 80, 'k', 'o', 'filled', 'DisplayName', 'idist selected');
+    h_mk(2) = scatter(NaN, NaN, 80, 'k', 'x', 'LineWidth', 1.5, 'DisplayName', 'idist not selected');
+
+    legend(h_mk, 'Location', 'best');
+    hold off;
+    xlabel('MedDist Values');
+    ylabel('K Values'); 
+    filename_meddist_kv = fullfile(folderName,sprintf('ch%s_medD_v_kv.png', channelNum));
+    exportgraphics(fig_meddist_kv, filename_meddist_kv, 'Resolution', 300);
+
 
     %% code continues
     lenC = length(coeff_nums);
@@ -578,7 +686,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         % Now start your main loop
         for p = 1:size(comp_shared,2)
             if comp_shared(coeff_num,p) ~= 0
-                % Determine which axes to use for plotting
+            % Determine which axes to use for plotting
                 if usePopup
                     % Use popup figure axes
                     current_ax = axn{p};
@@ -605,21 +713,42 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
                  [0.448276 0.379310 0.241379];[1.0 0.103448 0.724138];[0.545 0.545 0.545];[0.586207 0.827586 0.310345];
                  [0.965517 0.620690 0.862069];[0.620690 0.758621 1.]];
                 
-                % Continue with the rest of your plotting code...
                 isolated_spikes = spikes(spikeIdx,:);
                 cluster_num = cluster_times(spikeIdx,1);
-        
+    
+                %{
+                % === ORIGINAL PERCENT-BASED LOGIC ===
                 [clusters_present,~,cls_idx] = unique(cluster_num);
                 clust_counts = accumarray(cls_idx,1);
                 percent_clust = (clust_counts/numel(cluster_num))*100;
             
                 [sortedClsP,sortIdxCls] = sort(percent_clust,'descend');
-                    
                 top3_cluster = clusters_present(sortIdxCls(1:min(3,length(percent_clust))));
                 top3_perc = sortedClsP(1:min(3,length(percent_clust)));
-                
                 otherPerc = sum(percent_clust) - sum(top3_perc);
-        
+                %}
+    
+                [clusters_present,~,cls_idx] = unique(cluster_num);
+                clust_counts = accumarray(cls_idx,1);
+
+                % compute total spike counts per cluster (across all samples)
+                all_cluster_counts = accumarray(cluster_times(:,1)+1, 1); % +1 if clusters are 0-indexed
+
+                % local and global percentages
+                percent_clust_local = (clust_counts / numel(cluster_num)) * 100;
+                percent_clust_global = (clust_counts ./ all_cluster_counts(clusters_present+1)) * 100;
+
+                % sort clusters by count (descending)
+                [sortedCounts, sortIdxCls] = sort(clust_counts, 'descend');
+                sortedClusters = clusters_present(sortIdxCls);
+                sortedPercGlobal = percent_clust_global(sortIdxCls);
+
+                % display string (optional debug/info)
+                pairStr = arrayfun(@(id,n,p) sprintf('Clust %d: %d (%.2f%% glob)', ...
+                    id, n, p), sortedClusters, sortedCounts, sortedPercGlobal, 'UniformOutput', false);
+                perc_string = strjoin(pairStr, ', ');
+
+                % --- keep rest of your code the same below ---
                 x = 1:size(isolated_spikes,2);
                 mean_spikes = mean(isolated_spikes,1);
                 std_spikes = std(isolated_spikes,0,1);
@@ -631,74 +760,52 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
                 max_spikes_to_plot = 1000; % Adjust this number based on performance
                 
                 if size(isolated_spikes, 1) > max_spikes_to_plot
-                    % Method 1: Random sampling (fastest)
                     selected_indices = randperm(size(isolated_spikes, 1), max_spikes_to_plot);
                     isolated_spikes_to_plot = isolated_spikes(selected_indices, :);
                     color_select_to_plot = color_select(selected_indices, :);
-                    
-                    % Update the counts for accurate percentages
                 else
                     isolated_spikes_to_plot = isolated_spikes;
                     color_select_to_plot = color_select;
                 end
                 
-                % Then in your plotting loop, use the subset:
+                % Plot spikes
                 for k = 1:size(isolated_spikes_to_plot, 1)
                     plot(x, isolated_spikes_to_plot(k,:), 'Color', color_select_to_plot(k,:), 'LineWidth', 0.5);
                 end
-                
-                pairStr=arrayfun(@(x,p) sprintf('%2d(%.2f%%)',x,p),top3_cluster,top3_perc,'UniformOutput',false);
-                if otherPerc > 0
-                    pairStr{end+1} = sprintf('Other(%.2f%%)', otherPerc);
-                end
-                perc_string =strjoin(pairStr,',');
         
                 % Plot mean and std
                 plot(x, mean_spikes, 'b', 'LineWidth', 2);
                 plot(x, mean_spikes + std_spikes, 'r--', 'LineWidth', 1.5);
                 plot(x, mean_spikes - std_spikes, 'r--', 'LineWidth', 1.5);
-                title(sprintf('gauss %1d PofTotal: %.2f%% (%5d)',comp_shared(coeff_num,p), perc_tot,select_spikes)); % , %s',comp_shared(coeff_num,p), perc_tot,perc_string
-                
-                % Your legend code continues here...
+                title(sprintf('gauss %1d PofTotal: %.2f%% (%5d)', comp_shared(coeff_num,p), perc_tot, select_spikes));
+
+                % === LEGEND SECTION: ALL CLUSTERS ===
                 legend_labels = {};
                 legend_handles = [];
-                
-                % Add top clusters to legend
-                for z = 1:length(top3_cluster)
-                    cluster_id = top3_cluster(z);
+
+                for z = 1:length(sortedClusters)
+                    cluster_id = sortedClusters(z);
                     color_idx = cluster_id + 1;
                     if color_idx <= size(clus_colors, 1)
                         h = plot(NaN, NaN, 'Color', clus_colors(color_idx, :), 'LineWidth', 2);
                         legend_handles(end+1) = h;
-                        legend_labels{end+1} = sprintf('clust %d (%.2f%%)', cluster_id, top3_perc(z));
+                        legend_labels{end+1} = sprintf('Clust %d: %d spikes (%.2f%% global)', ...
+                            cluster_id, sortedCounts(z), sortedPercGlobal(z));
                     end
                 end
-                
-                % Add "Other" category
-                if otherPerc > 0
-                    other_clusters = setdiff(clusters_present, top3_cluster);
-                    if ~isempty(other_clusters)
-                        other_color = mean(clus_colors(other_clusters+1, :), 1);
-                        h = plot(NaN, NaN, 'Color', other_color, 'LineWidth', 2);
-                        legend_handles(end+1) = h;
-                        legend_labels{end+1} = sprintf('Other (%.2f%%)', otherPerc);
-                    end
-                end
-                
+
                 % Add mean and std to legend
                 h_mean = plot(NaN, NaN, 'b', 'LineWidth', 2);
                 h_std = plot(NaN, NaN, 'r--', 'LineWidth', 2);
                 legend_handles(end+1:end+2) = [h_mean, h_std];
                 legend_labels{end+1} = 'Mean';
                 legend_labels{end+1} = 'Mean ± STD';
-                
-                % Create the legend
-                legend(legend_handles, legend_labels, 'Location', 'best');
+
+                legend(legend_handles, legend_labels, 'Location', 'southoutside');
                 hold off;
-
-
             end
         end
+
         
         filename_spike = fullfile(folderName,sprintf('ch%s_coeff%02d_spikes.png', channelNum, coeff_num));
         exportgraphics(popupFig, filename_spike, 'Resolution', 300);
