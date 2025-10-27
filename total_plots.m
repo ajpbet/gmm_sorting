@@ -654,7 +654,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         mu = gmm_model.mu(:);
         sigma = sqrt(squeeze(gmm_model.Sigma(:)));
         w = gmm_model.ComponentProportion(:);
-        dm = medDist_cell{coeff_num};
+        dm = medDist_init{coeff_num};
 
         % initial gmm
         gmm_init = g_init{coeff_num};
