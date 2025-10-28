@@ -85,7 +85,7 @@ function M = GMM_basic1D(x,par)
     left_bound  = main_peak_center - main_peak_width/2;
     right_bound = main_peak_center + main_peak_width/2;
 
-
+    
     
     % [a_sort,a_idx] = sort(a,'descend');
     % dropThreshold = 4;

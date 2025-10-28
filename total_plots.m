@@ -500,87 +500,52 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     filename_idistKmatch = fullfile(folderName,sprintf('ch%s_idistKmatch.png', channelNum));
   %  exportgraphics(fig1st_idistKmatch, filename_idistKmatch, 'Resolution', 300);
 
-        %% best idist and its respective k val
-    fig_idist_kv = figure;
-    title("idist v kv")
-    grid on
-    hold on
-    % For each coefficient, plot IDist (x) vs KS (y)
-    for k = 1:length(r_sorted_idist)
-        coeff_num = r_ind_idist(k);  % Coefficient number from KS ordering
-        gaussWinner = poly_match_idistK(coeff_num);
-        newGaussIdx = find(polyID{coeff_num} == gaussWinner);
-
-
-        kval = kj_mat{coeff_num}(newGaussIdx);
-        if isempty(newGaussIdx)
-            kval = 0;
-        end
-        % Find the IDist value for this coefficient number
-        idist_val = idist_kmatch(coeff_num);
-        
-        % Determine marker based on top 13 KS
-        if k <= idist_kmatch_lSel  % Since ks_y is sorted, first 13 are top
-            % Top 13 KS - use dot
-            marker = 'o';
-            marker_face = color_idistk{coeff_num};
-        else
-            % Not top 13 KS - use x
-            marker = 'x';
-            marker_face = 'none';
-        end
-        
-        % Plot the point
-        scatter(idist_val, kval, 80, color_idistk{coeff_num}, marker, 'LineWidth', 1.5, ...
-                'MarkerFaceColor', marker_face);
-        
-        % Label with coefficient number
-        text(idist_val, kval+0.01, num2str(coeff_num), ...
-             'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
-             'FontSize', 8, 'Color', 'k', 'FontWeight', 'bold');
-    end
-
-    h_k(1) = scatter(NaN, NaN, 80, 'k', 'o', 'filled', 'DisplayName', 'idist selected');
-    h_k(2) = scatter(NaN, NaN, 80, 'k', 'x', 'LineWidth', 1.5, 'DisplayName', 'idist not selected');
-
-    legend(h_k, 'Location', 'best');
-    hold off;
-    xlabel('IDist Values');
-    ylabel('K Values'); 
-    filename_idist_kv = fullfile(folderName,sprintf('ch%s_id_v_kv.png', channelNum));
-  %  exportgraphics(fig_idist_kv, filename_idist_kv, 'Resolution', 300);
-    
 %% plot all meddist vs k excl. Mcomp
-  
     fig_meddist_kv = figure;
     title("meddist vs. kv")
     grid on
     hold on
     % For each coefficient, plot IDist (x) vs KS (y)
-    for k = 1:size(medDist_sortIdx,2)
-        
+    for k = 1:size(medDist_sortIdx,2)    
+        [pk_vals, pk_locs, pk_widths] = findpeaks(pg{k}, xg{k}, 'WidthReference', 'halfheight');
         for z = 1:length(medDist_sortIdx{k})
             if ~isempty(medDist_sortIdx{k})
                 medDist = medDist_sort{k}(z);
                 gaussSelect = medDist_sortIdx{k}(z);
                 gauss_idx = find(polyID{k} == gaussSelect);
+                mu_gauss = g{k}.mu(gauss_idx);
+                std_gauss = g{k}.Sigma(gauss_idx);
+                gauss_upp = mu_gauss+std_gauss;
+                gauss_low = mu_gauss-std_gauss;
                 kv = kj_mat{k}(gauss_idx);
                 % Find the IDist value for this coefficient number
-                
+                inRangeIdx = pk_locs >= gauss_low & pk_locs <= gauss_upp;
+                hasPeakInRange = any(inRangeIdx);
+
+
                 % Determine marker based on top 13 KS
                 if ismember(k,idist_select(:,1))  % Since ks_y is sorted, first 13 are top
                     % Top 13 KS - use dot
                     marker = 'o';
-                    marker_face = 'k';
+                    if hasPeakInRange
+                        col = 'g';
+                    else
+                        col = 'r';
+                    end
                 else
                     % Not top 13 KS - use x
                     marker = 'x';
+                    if hasPeakInRange
+                        col = 'g';
+                    else
+                        col = 'r';
+                    end
                     marker_face = 'none';
                 end
                 
                 % Plot the point
-                scatter(medDist, kv, 80, 'k', marker, 'LineWidth', 1.5, ...
-                        'MarkerFaceColor', marker_face);
+                scatter(medDist, kv, 80, col, marker, 'LineWidth', 1.5, ...
+                        'MarkerFaceColor', col);
                 
                 % Label with coefficient number
                 text(medDist, kv+0.4, num2str(k), ...
@@ -589,17 +554,23 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
             end
         end
     end
-
+    xline(idist_select(idist_kmatch_lSel,2), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder');
+    
+    h_m(1) = scatter(NaN, NaN, 80, 'g', 'o', 'filled', 'DisplayName', 'near peak');
+    h_m(2) = scatter(NaN, NaN, 80, 'r', 'o', 'filled', 'DisplayName', 'no peak');
     h_mk(1) = scatter(NaN, NaN, 80, 'k', 'o', 'filled', 'DisplayName', 'idist selected');
     h_mk(2) = scatter(NaN, NaN, 80, 'k', 'x', 'LineWidth', 1.5, 'DisplayName', 'idist not selected');
+    h_mk(3) = plot(NaN, NaN, '--', 'Color', 'b', 'DisplayName', 'idist knee');
 
-    legend(h_mk, 'Location', 'best');
+    legend([h_m, h_mk], 'Location', 'best');
     hold off;
     xlabel('MedDist Values');
     ylabel('K Values'); 
     filename_meddist_kv = fullfile(folderName,sprintf('ch%s_medD_v_kv.png', channelNum));
    % exportgraphics(fig_meddist_kv, filename_meddist_kv, 'Resolution', 300);
-
+%% idist kmatch
+    idistKmatch_vKv(idist_kmatch,kj_mat,poly_match_idistK,polyID,g,pg,xg,idist_select, ...
+        idist_kmatch_lSel, channelNum, folderName);
 
     %% code continues
     lenC = length(coeff_nums);
