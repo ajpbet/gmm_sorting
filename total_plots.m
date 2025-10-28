@@ -75,8 +75,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     end
 
     
-
-    
+%% distribution of kvalues
+    kv_dist(summary_table, channelNum, folderName,g)
 
 
     %% plot k values in a table with all coefficeints
@@ -111,7 +111,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
        text(k+0.1,maxK_sort(k,2)+0.1,num2str(maxK_sort(k,1))); 
     end
     filename_kv = fullfile(folderName,sprintf('ch%s_maxKvalsPerCoef.png', channelNum));
-  %  exportgraphics(fig_k, filename_kv, 'Resolution', 300);
+    exportgraphics(fig_k, filename_kv, 'Resolution', 300);
 
 %% mathing top 3 vals
     maxLen = max(cellfun(@numel, kj_mat));
@@ -378,7 +378,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     hold off;
     filename_IDKScoeff = fullfile(folderName,sprintf('ch%s_IDKScoeff.png', channelNum));
- %   exportgraphics(fig_idist, filename_IDKScoeff, 'Resolution', 300);
+    exportgraphics(fig_idist, filename_IDKScoeff, 'Resolution', 300);
     
     %%
     % scatter plot of both 
@@ -437,7 +437,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     legend([h_match, h_ks], 'Location', 'best');
     hold off;
     filename_MaxIDvKS = fullfile(folderName,sprintf('ch%s_MaxIDvKS.png', channelNum));
-  %  exportgraphics(fig_maxIDvKS, filename_MaxIDvKS, 'Resolution', 300);
+    exportgraphics(fig_maxIDvKS, filename_MaxIDvKS, 'Resolution', 300);
 
  
 
@@ -498,7 +498,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     legend([h_match, h_ks], 'Location', 'best');
     hold off;
     filename_idistKmatch = fullfile(folderName,sprintf('ch%s_idistKmatch.png', channelNum));
-  %  exportgraphics(fig1st_idistKmatch, filename_idistKmatch, 'Resolution', 300);
+    exportgraphics(fig1st_idistKmatch, filename_idistKmatch, 'Resolution', 300);
 
 %% plot all meddist vs k excl. Mcomp
     fig_meddist_kv = figure;
