@@ -77,7 +77,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
 
     %% plot k values in a table with all coefficeints
-    tab_gauss(summary_table);
+    tab_gauss(summary_table,channelNum);
 
     %% plot only good coeffs or plot top coeffs
     plot_all = true;
@@ -565,7 +565,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
                 % Find the IDist value for this coefficient number
                 
                 % Determine marker based on top 13 KS
-                if ismember(medDist_sortIdx{k}(z),idist_select(:,1))  % Since ks_y is sorted, first 13 are top
+                if ismember(k,idist_select(:,1))  % Since ks_y is sorted, first 13 are top
                     % Top 13 KS - use dot
                     marker = 'o';
                     marker_face = 'k';
