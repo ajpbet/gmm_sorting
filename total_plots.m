@@ -18,7 +18,10 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     if ~exist(folderName, 'dir')
         mkdir(folderName);
     end
-
+    folderSpike = fullfile(folderName, 'spikes');
+    if ~exist(folderSpike, 'dir')
+        mkdir(folderSpike);
+    end
 
     %% filter GMM results by weight (K, M_comp, medDist, polyID_M)
     g_init = cell(1,length(g));
@@ -77,8 +80,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
 
     %% plot k values in a table with all coefficeints
-    tab_gauss(summary_table,channelNum);
-
+    tab_gauss(summary_table,channelNum,[],g,folderName);
     %% plot only good coeffs or plot top coeffs
     plot_all = true;
     exc_combPdf = true;
@@ -109,7 +111,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
        text(k+0.1,maxK_sort(k,2)+0.1,num2str(maxK_sort(k,1))); 
     end
     filename_kv = fullfile(folderName,sprintf('ch%s_maxKvalsPerCoef.png', channelNum));
-    exportgraphics(fig_k, filename_kv, 'Resolution', 300);
+  %  exportgraphics(fig_k, filename_kv, 'Resolution', 300);
 
 %% mathing top 3 vals
     maxLen = max(cellfun(@numel, kj_mat));
@@ -177,7 +179,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     count = 0;
 
     medDist_top3idx = zeros(numel(medDist_sort),3);  % numeric matrix for plotting
-    
+    medDist_top3 = zeros(numel(medDist_sort),3);
     for r = 1:numel(medDist_sort)
         vals = medDist_sort{r};
         ids  = medDist_sortIdx{r};
@@ -185,6 +187,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         
         if nTop > 0
             medDist_top3idx(r,1:nTop) = ids(1:nTop);
+            medDist_top3(r,1:nTop) = vals(1:nTop);
         end
     end
 
@@ -192,13 +195,13 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     nRows = size(medDist_top3idx,1);
     comp_sharedIdx = zeros(size(medDist_top3idx,1),1);
     comp_shared    = zeros(size(medDist_top3idx));
-    
+    share_medDist_top3 = zeros(size(medDist_top3idx));
     for r = 1:size(medDist_top3idx,1)
         tempMed = medDist_top3idx(r,:);
         tempK   = k_top3idx(r,:);
-        
+        tempMval = medDist_top3;
         comp_shared(r,:) = tempMed .* ismember(tempMed, tempK);  % zero where no match
-        
+        share_medDist_top3 = tempMval.* ismember(tempMed, tempK);
         % first match
         matchFound = false;
         for j = 1:length(tempMed)
@@ -375,7 +378,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     hold off;
     filename_IDKScoeff = fullfile(folderName,sprintf('ch%s_IDKScoeff.png', channelNum));
-    exportgraphics(fig_idist, filename_IDKScoeff, 'Resolution', 300);
+ %   exportgraphics(fig_idist, filename_IDKScoeff, 'Resolution', 300);
     
     %%
     % scatter plot of both 
@@ -434,7 +437,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     legend([h_match, h_ks], 'Location', 'best');
     hold off;
     filename_MaxIDvKS = fullfile(folderName,sprintf('ch%s_MaxIDvKS.png', channelNum));
-    exportgraphics(fig_maxIDvKS, filename_MaxIDvKS, 'Resolution', 300);
+  %  exportgraphics(fig_maxIDvKS, filename_MaxIDvKS, 'Resolution', 300);
 
  
 
@@ -495,7 +498,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     legend([h_match, h_ks], 'Location', 'best');
     hold off;
     filename_idistKmatch = fullfile(folderName,sprintf('ch%s_idistKmatch.png', channelNum));
-    exportgraphics(fig1st_idistKmatch, filename_idistKmatch, 'Resolution', 300);
+  %  exportgraphics(fig1st_idistKmatch, filename_idistKmatch, 'Resolution', 300);
 
         %% best idist and its respective k val
     fig_idist_kv = figure;
@@ -545,7 +548,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     xlabel('IDist Values');
     ylabel('K Values'); 
     filename_idist_kv = fullfile(folderName,sprintf('ch%s_id_v_kv.png', channelNum));
-    exportgraphics(fig_idist_kv, filename_idist_kv, 'Resolution', 300);
+  %  exportgraphics(fig_idist_kv, filename_idist_kv, 'Resolution', 300);
     
 %% plot all meddist vs k excl. Mcomp
   
@@ -595,7 +598,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     xlabel('MedDist Values');
     ylabel('K Values'); 
     filename_meddist_kv = fullfile(folderName,sprintf('ch%s_medD_v_kv.png', channelNum));
-    exportgraphics(fig_meddist_kv, filename_meddist_kv, 'Resolution', 300);
+   % exportgraphics(fig_meddist_kv, filename_meddist_kv, 'Resolution', 300);
 
 
     %% code continues
@@ -630,7 +633,12 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     else
         coeff_vals = coeff_vector;
     end
-
+    coeff_clusters = linspace(1,64,64);
+    plotGaussianClusterAnalysis(g, polyID_M, wd_coeff, cluster_times, ...
+        coeff_clusters, channelNum, folderSpike,M_comp);
+    
+   plotClusterCoefficientMap(g_init, share_medDist_top3, comp_shared, wd_coeff, spikes, ...
+       cluster_times, coeff_clusters, channelNum, folderSpike);
 
     [kde_pdf,kde_xf] = kde_est(wd_coeff,1:lenC);
     mse_vals = mean_square_error(pg,xg,kde_pdf,kde_xf,1:lenC);
@@ -807,7 +815,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         end
 
         
-        filename_spike = fullfile(folderName,sprintf('ch%s_coeff%02d_spikes.png', channelNum, coeff_num));
+        filename_spike = fullfile(folderSpike,sprintf('ch%s_coeff%02d_spikes.png', channelNum, coeff_num));
         exportgraphics(popupFig, filename_spike, 'Resolution', 300);
         figure(fig);
         % >>> detect critical points on KDE (peaks & inflection) <<<
@@ -1053,7 +1061,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
         drawnow;
 
-        filename_pdf = fullfile(folderName,sprintf('ch%s_coeff%02d_pdf.png', channelNum, coeff_num));
+        filename_pdf = fullfile(folderSpike,sprintf('ch%s_coeff%02d_pdf.png', channelNum, coeff_num));
         exportgraphics(fig, filename_pdf, 'Resolution', 300);
     end
 end

@@ -90,7 +90,10 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     idist_kmatch_lSel = length(idist_select(:,1));
 
     %% side by side coeff plot for idist and ks vals
-    plot_idist_ks(sorted_idist, ind_idist, idist_kmatch_lSel, ks_out_full, ...
-        all_ks, lenKs, folderName, channelNum)
+    [ks_d,ks_y,r_sorted_idist,r_ind_idist] = plot_idist_ks(sorted_idist, ind_idist, idist_kmatch_lSel, ks_out_full, ...
+        all_ks, lenKs, folderName, channelNum);
+
+    %% scatter plot of max idist v. ks
+     scatter_max_idist_ks(ks_d,ks_y,lenKs)
 
 end
