@@ -117,13 +117,21 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     maxLen = max(cellfun(@numel, kj_mat));
     
     % Sort each numeric array in descending order
-    k_Mat = cell(size(kj_mat));
+    k_sort = cell(size(kj_mat));
     % Map sorted indices to polyIDs
     k_sortIdx = cell(size(kj_mat));
-    for r = 1:numel(k_Mat)
-        [vals_sorted, idx] = sort(kj_mat{r}, 'descend');  % sort original numeric values
-        k_Mat{r} = vals_sorted;
-        k_sortIdx{r} = polyID_M{r}(idx);        % map sorted indices to polyIDs
+    for r = 1:numel(k_sort)
+        vals = kj_mat{r};
+        ids  = polyID_M{r};
+        
+        % Exclude NaNs
+        mask = ~isnan(vals);
+        vals_valid = vals(mask);
+        ids_valid  = ids(mask);
+        
+        [vals_sorted, idx] = sort(vals_valid, 'descend');  % sort original numeric values
+        k_sort{r} = vals_sorted;
+        k_sortIdx{r} = ids_valid(idx);        % map sorted indices to polyIDs
     end
     
     % Top 3 polyIDs for plotting / comparison
@@ -158,6 +166,9 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         medDist_sort_masked    = cell(size(medDist_sort));
         medDist_sortIdx_masked = cell(size(medDist_sortIdx));
         
+        k_sort_masked = cell(size(k_sort));
+        k_sortIdx_masked = cell(size(k_sortIdx));
+
         for r = 1:numRows
             vals = medDist_sort{r};
             ids  = medDist_sortIdx{r};
@@ -169,13 +180,25 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
             medDist_sortIdx_masked{r} = ids(mask);
         end
         
+        for r = 1:numRows
+            vals = k_sort{r};
+            ids  = k_sortIdx{r};
+            idx_exclude = M_comp{r};  % indices to exclude
+            
+            mask = ~ismember(ids, idx_exclude) & ~isnan(vals);
+            
+            k_sort_masked{r}    = vals(mask);
+            k_sortIdx_masked{r} = ids(mask);
+        end
         % Replace originals
-
+        k_sort = k_sort_masked;
+        k_sortIdx = k_sortIdx_masked;
         medDist_sort    = medDist_sort_masked;
         medDist_sortIdx = medDist_sortIdx_masked;
 
     end
-%%
+%% get top first medDist in top 3 kv
+%  and get components shared by medDist and kv (in the top 3)
     count = 0;
 
     medDist_top3idx = zeros(numel(medDist_sort),3);  % numeric matrix for plotting
@@ -274,311 +297,56 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
          end
      end
     
-     %% idist selection criteria
-% --- Sort IDist values ascending and store full list ---
-    [sorted_idist, ind_idist] = sort(idist_kmatch);  
+     %% idist selection criteria knee
+     [idist_select, inputs_idist, idist_kmatch_lSel, sorted_idist, ind_idist] = ...
+         processIdistKnee(idist_kmatch);
 
-    % --- Keep only top maxIdist candidates for knee detection ---
-    minIdist = 1;
-    maxIdist = 30;
-    top_candidates = sorted_idist(end-maxIdist+1:end);
-    top_indices    = ind_idist(end-maxIdist+1:end);
-    
-    ncoeff = length(sorted_idist);
-    maxA_idist = max(sorted_idist);
-    
-    % --- Sliding-window slope computation ---
-    nd = 10;
-    if ncoeff >= nd
-        d_idist = (top_candidates(nd:end) - top_candidates(1:end-nd+1)) ...
-                   / maxA_idist * ncoeff / nd;
-        all_above1_idist = find(d_idist >= 1);
-    else
-        all_above1_idist = [];
-    end
-    
-    % --- Knee detection ---
-    if numel(all_above1_idist) >= 2
-        aux2_idist = diff(all_above1_idist);
-        temp_bla_idist = conv(aux2_idist(:), [1 1 1]/3);   % smooth differences
-        temp_bla_idist = temp_bla_idist(2:end-1);
-        temp_bla_idist(1) = aux2_idist(1);
-        temp_bla_idist(end) = aux2_idist(end);
-    
-        % First position where 3 consecutive differences == 1
-        thr_knee_diff_idist = all_above1_idist(find(temp_bla_idist(2:end) == 1, 1)) + nd/2;
-    
-        % Number of inputs to select
-        inputs_idist = maxIdist - thr_knee_diff_idist + 1;
-    else
-        % Fallback if no steep slope detected
-        inputs_idist = minIdist;
-    end
-    
-    % --- Select top coefficients ---
-    coeff_idist = top_indices(end:-1:end-inputs_idist+1);   % descending order
-    idist_select(:,1) = coeff_idist;                           % coefficient indices
-    idist_select(:,2) = idist_kmatch(coeff_idist);            % corresponding IDist values
-    
-    idist_kmatch_lSel = length(idist_select(:,1));
+    %% kv knee(all present gauss after combined gaussian removed)
+    % this will detect the knee in all kv values that are not low weight
+    % or combined pdf
+    % medDist_vec has struc [medDist,coeff#,component(gauss)#]
+    [k_select,k_lSel,kDist_vec] = processKvKnee(k_sort, k_sortIdx);
 
+    % process k knee when gaussians not near a peak are exluded
+    [k_sel_NoPk,k_lSel_NoPk,kDist_vec_NoPk] = KvKneeNoPkExc(k_sort, k_sortIdx,pg_init,g_init,xg_init);
+
+    % plotting functions for with and without "near peak" exclusion
+
+    %% meddist knee (all present gauss after combined gaussian removed)
+    [medDist_select, medDist_lSel,medDist_vec] = processMedDistKnee(medDist_sort, medDist_sortIdx);    %% kv plot all vals with knee (all present gauss after combined gaussian removed)
+    % medDist_vec has struc [medDist,coeff#,component(gauss)#]
+    % original polyIds preserved in gauss(id)
+
+    % process medDist when gaussians not near a peak are excluded
+    [medD_sel_noPk,medD_lSel_noPk,medD_vec_noPk] = medDistKneeNoPkExc(medDist_sort, medDist_sortIdx, ...
+    pg_init,g_init,xg_init);
+
+    % plotting functions for both
+
+    %% meddist plot all vals with knee (all present gauss after combined gaussian removed)
+
+    
     %% coeff plots side by side   
-    fig_idist = figure;
-    r_sorted_idist = flip(sorted_idist);
-    r_ind_idist = flip(ind_idist);
-    plot(r_sorted_idist)
-    title("idist vals per coeff")
-
-
-    hold on
-    for k = 1:length(r_sorted_idist)
-        if k <= idist_kmatch_lSel  % Below x=13 - use dots
-            plot(k, r_sorted_idist(k), 'bo', 'MarkerSize', 6, 'MarkerFaceColor','b');
-        else  % Above or at x=13 - use x markers
-            plot(k, r_sorted_idist(k), 'bx', 'MarkerSize', 8, 'LineWidth', 1.5);
-        end
-    end
-    for k = 1:length(r_sorted_idist)
-       text(k+0.1,r_sorted_idist(k)+0.1,num2str(r_ind_idist(k)),"Color",'b'); 
-    end
-    hold on;
-    ks_d = flip(ks_out_full);
-    ks_y = flip(all_ks);
-    yyaxis right;
-    plot(ks_y)
-    hold on
-    
-    % Add scatter points with different markers based on x-position
-    for k = 1:length(ks_y)
-        if k <= lenKs  % Below x=13 - use dots
-            plot(k, ks_y(k), 'ro', 'MarkerSize', 6, 'MarkerFaceColor', 'r');
-        else  % Above or at x=13 - use x markers
-            plot(k, ks_y(k), 'rx', 'MarkerSize', 8, 'LineWidth', 1.5);
-        end
-    end
-    
-    % Add text labels (your existing code)
-    for k = 1:length(ks_y)
-       text(k-0.2, ks_y(k)-0.05*range(ks_y), num2str(ks_d(k)), "Color", 'r', ...
-            'FontSize', 8, 'HorizontalAlignment', 'left'); 
-    end
-    
-    % Add vertical line at x=13
-    xline(lenKs, '--', 'Color', 'red', 'LineWidth', 0.5, 'Alpha', 0.7);
-    xline(idist_kmatch_lSel, '--', 'Color', 'blue', 'LineWidth', 0.5, 'Alpha', 0.7);
-
-    % Match types (colors)
-    h_match(1) = plot(NaN, NaN, 'b-', 'DisplayName', 'IDIST');          % blue line
-    h_match(2) = plot(NaN, NaN, 'Color', [1 0.5 0], 'LineStyle', '-', ...
-                      'DisplayName', 'K');                               % orange line
-    h_match(3) = scatter(NaN, NaN, 80, 'k', 'filled', 'DisplayName', 'Selected');  % filled dot
-    h_match(4) = scatter(NaN, NaN, 80, 'kx', 'DisplayName', 'Not selected');       % X marker
-    
-    legend(h_match, 'Location', 'best');
-
-    hold off;
-    filename_IDKScoeff = fullfile(folderName,sprintf('ch%s_IDKScoeff.png', channelNum));
-    exportgraphics(fig_idist, filename_IDKScoeff, 'Resolution', 300);
+    plotIdistKsCoeff(sorted_idist, ind_idist, 13, ks_out_full, all_ks, 13,folderName,channelNum);
     
     %%
-    % scatter plot of both 
-    fig_maxIDvKS = figure;
-    hold on;
-    
-    % Top 13 KS coefficients are the first 13 since ks_y is sorted
-    ks_top_coeffs = ks_d(1:lenKs);
-    
-    % For each coefficient, plot IDist (x) vs KS (y)
-    for k = 1:length(ks_y)
-        coeff_num = ks_d(k);  % Coefficient number from KS ordering
-        
-        % Find the IDist value for this coefficient number
-        idist_val = idistVals(coeff_num);
-        
-        % Determine marker based on top 13 KS
-        if k <= lenKs  % Since ks_y is sorted, first 13 are top
-            % Top 13 KS - use dot
-            marker = 'o';
-            marker_face = colors{coeff_num};
-        else
-            % Not top 13 KS - use x
-            marker = 'x';
-            marker_face = 'none';
-        end
-        
-            % Plot the point
-        scatter(idist_val, ks_y(k), 80, colors{coeff_num}, marker, 'LineWidth', 1.5, ...
-                'MarkerFaceColor', marker_face);
-        
-        % Label with coefficient number
-        text(idist_val, ks_y(k)+0.01, num2str(coeff_num), ...
-             'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
-             'FontSize', 8, 'Color', 'k', 'FontWeight', 'bold');
-    end
-    
-    xlabel('IDist Values');
-    ylabel('KS Values'); 
-    title('IDist vs KS Values (dots = KS select, X = Others)');
-    grid on;
-    
-    hold on;
+    plotMaxIDvKS(idistVals, ks_y, ks_d, colors, lenKs, folderName, channelNum)
 
-    % Match types (colors)
-    h_match(1) = scatter(NaN, NaN, 80, 'r', 'o', 'filled', 'DisplayName', 'No matches');
-    h_match(2) = scatter(NaN, NaN, 80, 'y', 'o', 'filled', 'DisplayName', '1 match');
-    h_match(3) = scatter(NaN, NaN, 80, 'b', 'o', 'filled', 'DisplayName', '2 matches');
-    h_match(4) = scatter(NaN, NaN, 80, 'g', 'o', 'filled', 'DisplayName', '3 matches');
-    h_match(5) = scatter(NaN, NaN, 80, 'm', 'o', 'filled', 'DisplayName', 'Perfect match');
-    
-    % KS selection (markers)
-    h_ks(1) = scatter(NaN, NaN, 80, 'k', 'o', 'filled', 'DisplayName', 'KS selected');
-    h_ks(2) = scatter(NaN, NaN, 80, 'k', 'x', 'LineWidth', 1.5, 'DisplayName', 'KS not selected');
-    
-    legend([h_match, h_ks], 'Location', 'best');
-    hold off;
-    filename_MaxIDvKS = fullfile(folderName,sprintf('ch%s_MaxIDvKS.png', channelNum));
-    exportgraphics(fig_maxIDvKS, filename_MaxIDvKS, 'Resolution', 300);
-
- 
 
     %% coefficient plot best idist/kj matching
+    plotIdistKmatch(ks_y, ks_d, 13, idist_kmatch, color_idistk, ks_out, idist_select,folderName, channelNum);
 
-    fig1st_idistKmatch = figure;
-    hold on;
-      
-    % For each coefficient, plot IDist (x) vs KS (y)
-    for k = 1:length(ks_y)
-        coeff_num = ks_d(k);  % Coefficient number from KS ordering
-        
-        % Find the IDist value for this coefficient number
-        idist_val = idist_kmatch(coeff_num);
-        
-        % Determine marker based on top 13 KS
-        if k <= lenKs  % Since ks_y is sorted, first 13 are top
-            % Top 13 KS - use dot
-            marker = 'o';
-            marker_face = color_idistk{coeff_num};
-        else
-            % Not top 13 KS - use x
-            marker = 'x';
-            marker_face = 'none';
-        end
-        
-        % Plot the point
-        scatter(idist_val, ks_y(k), 80, color_idistk{coeff_num}, marker, 'LineWidth', 1.5, ...
-                'MarkerFaceColor', marker_face);
-        
-        % Label with coefficient number
-        text(idist_val, ks_y(k)+0.01, num2str(coeff_num), ...
-             'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
-             'FontSize', 8, 'Color', 'k', 'FontWeight', 'bold');
-    end
-    
-    xlabel('IDist Values');
-    ylabel('KS Values'); 
-    title('IDist vs KS Values - highest idist with top 3 k)');
-    grid on;
-
-    yline(min(ks_out(:,2)), '--', 'Color', [1 0.5 0], 'LineWidth', 1.5, 'DisplayName', 'KS cutoff');
-    xline(min(idist_select(:,2)), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder');
-
-    
-    % Match types (colors)
-    h_match(1) = scatter(NaN, NaN, 80, 'm', 'o', 'filled', 'DisplayName', '1st mDist');
-    h_match(2) = scatter(NaN, NaN, 80, 'g', 'o', 'filled', 'DisplayName', '2nd mDist');
-    h_match(3) = scatter(NaN, NaN, 80, 'b', 'o', 'filled', 'DisplayName', '3rd mDist');
-    h_match(4) = scatter(NaN, NaN, 80, 'r', 'o', 'filled', 'DisplayName', '>3 mDist');
-    h_match(5) = plot(NaN, NaN, '--', 'Color', [1 0.5 0], 'DisplayName', 'KS cutoff');   % orange dotted
-    h_match(6) = plot(NaN, NaN, '--', 'Color', 'b', 'DisplayName', 'IDist cutoff');     % blue dotted
-
-    % KS selection (markers)
-    h_ks(1) = scatter(NaN, NaN, 80, 'k', 'o', 'filled', 'DisplayName', 'KS selected');
-    h_ks(2) = scatter(NaN, NaN, 80, 'k', 'x', 'LineWidth', 1.5, 'DisplayName', 'KS not selected');
-    
-    legend([h_match, h_ks], 'Location', 'best');
-    hold off;
-    filename_idistKmatch = fullfile(folderName,sprintf('ch%s_idistKmatch.png', channelNum));
-    exportgraphics(fig1st_idistKmatch, filename_idistKmatch, 'Resolution', 300);
 
 %% plot all meddist vs k excl. Mcomp
-    fig_meddist_kv = figure;
-    title("meddist vs. kv")
-    grid on
-    hold on
-    % For each coefficient, plot IDist (x) vs KS (y)
-    for k = 1:size(medDist_sortIdx,2)    
-        [pk_vals, pk_locs, pk_widths] = findpeaks(pg{k}, xg{k}, 'WidthReference', 'halfheight');
-        for z = 1:length(medDist_sortIdx{k})
-            if ~isempty(medDist_sortIdx{k})
-                medDist = medDist_sort{k}(z);
-                gaussSelect = medDist_sortIdx{k}(z);
-                gauss_idx = find(polyID{k} == gaussSelect);
-                mu_gauss = g{k}.mu(gauss_idx);
-                std_gauss = g{k}.Sigma(gauss_idx);
-                gauss_upp = mu_gauss+std_gauss;
-                gauss_low = mu_gauss-std_gauss;
-                kv = kj_mat{k}(gauss_idx);
-                % Find the IDist value for this coefficient number
-                inRangeIdx = pk_locs >= gauss_low & pk_locs <= gauss_upp;
-                hasPeakInRange = any(inRangeIdx);
-
-
-                % Determine marker based on top 13 KS
-                if ismember(k,idist_select(:,1))  % Since ks_y is sorted, first 13 are top
-                    % Top 13 KS - use dot
-                    marker = 'o';
-                    if hasPeakInRange
-                        col = 'g';
-                    else
-                        col = 'r';
-                    end
-                else
-                    % Not top 13 KS - use x
-                    marker = 'x';
-                    if hasPeakInRange
-                        col = 'g';
-                    else
-                        col = 'r';
-                    end
-                    marker_face = 'none';
-                end
-                
-                % Plot the point
-                scatter(medDist, kv, 80, col, marker, 'LineWidth', 1.5, ...
-                        'MarkerFaceColor', col);
-                
-                % Label with coefficient number
-                text(medDist, kv+0.4, num2str(k), ...
-                     'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
-                     'FontSize', 8, 'Color', 'k', 'FontWeight', 'bold');
-            end
-        end
-    end
-    xline(idist_select(idist_kmatch_lSel,2), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder');
-    
-    h_m(1) = scatter(NaN, NaN, 80, 'g', 'o', 'filled', 'DisplayName', 'near peak');
-    h_m(2) = scatter(NaN, NaN, 80, 'r', 'o', 'filled', 'DisplayName', 'no peak');
-    h_mk(1) = scatter(NaN, NaN, 80, 'k', 'o', 'filled', 'DisplayName', 'idist selected');
-    h_mk(2) = scatter(NaN, NaN, 80, 'k', 'x', 'LineWidth', 1.5, 'DisplayName', 'idist not selected');
-    h_mk(3) = plot(NaN, NaN, '--', 'Color', 'b', 'DisplayName', 'idist knee');
-
-    legend([h_m, h_mk], 'Location', 'best');
-    hold off;
-    xlabel('MedDist Values');
-    ylabel('K Values'); 
-    filename_meddist_kv = fullfile(folderName,sprintf('ch%s_medD_v_kv.png', channelNum));
-   % exportgraphics(fig_meddist_kv, filename_meddist_kv, 'Resolution', 300);
+    plotMedDistVsKv(pg, xg, medDist_sort, medDist_sortIdx, polyID, g, kj_mat, idist_select, idist_kmatch_lSel, folderName, channelNum);
+   
 %% idist kmatch
     idistKmatch_vKv(idist_kmatch,kj_mat,poly_match_idistK,polyID,g,pg,xg,idist_select, ...
         idist_kmatch_lSel, channelNum, folderName);
 
     %% code continues
     lenC = length(coeff_nums);
-    %lenC = 20;
-    %put in title ks ranking for each ranking rank by best ks values
-    % is present in ks metric
 
-    %find common overlap between k and idist
 %% variable coefficient input
 
     m_compNumel = cellfun(@numel, M_comp);
@@ -605,12 +373,14 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         coeff_vals = coeff_vector;
     end
     coeff_clusters = linspace(1,64,64);
-    plotGaussianClusterAnalysis(g, polyID_M, wd_coeff, cluster_times, ...
-        coeff_clusters, channelNum, folderSpike,M_comp);
-    
+  %%  
+    % not used
+    % plotGaussianClusterAnalysis(g, polyID_M, wd_coeff, cluster_times, ...
+    %     coeff_clusters, channelNum, folderSpike,M_comp);
+    %%
    plotClusterCoefficientMap(g_init, share_medDist_top3, comp_shared, wd_coeff, spikes, ...
        cluster_times, coeff_clusters, channelNum, folderSpike);
-
+%%
     [kde_pdf,kde_xf] = kde_est(wd_coeff,1:lenC);
     mse_vals = mean_square_error(pg,xg,kde_pdf,kde_xf,1:lenC);
     
