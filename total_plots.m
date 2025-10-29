@@ -23,6 +23,9 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         mkdir(folderSpike);
     end
 
+    %% function to save figs or not (no save faster)
+    saveFigs = true;
+
     %% filter GMM results by weight (K, M_comp, medDist, polyID_M)
     g_init = cell(1,length(g));
     medDist_cell = cell(1,length(g));
