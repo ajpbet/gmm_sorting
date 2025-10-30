@@ -105,8 +105,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     [idist_sort(:,2),idist_sort(:,1)] = sort(idistVals,"descend");
     
 
-    change for idist over ks over lay ii double plot
-    need to lable
+    % change for idist over ks over lay ii double plot
+    % need to lable
     fig_k = figure;
     plot(maxK_sort(:,2))
     title(" max k vals per coeff")
