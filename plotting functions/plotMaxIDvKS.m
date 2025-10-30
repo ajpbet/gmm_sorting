@@ -1,4 +1,4 @@
-function c
+function plotMaxIDvKS(idistVals, all_ks, ks_out_full, colors, lenKs, folderName, channelNum)
 % PLOTMAXIDVKS: Create and save a scatter plot comparing IDist and KS values
 %
 % INPUTS:
@@ -12,7 +12,8 @@ function c
 %
 % OUTPUT:
 %   Saves figure to [folderName]/ch[channelNum]_MaxIDvKS.png
-
+    ks_d = flip(ks_out_full);
+    ks_y = flip(all_ks);
     % Create figure
     fig_maxIDvKS = figure; % Hide figure for batch processing
     hold on;

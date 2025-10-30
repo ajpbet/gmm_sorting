@@ -1,4 +1,4 @@
-function idistKmatch_vKv(idist_kmatch,kj_mat,poly_match_idistK,polyID,g,pg,xg,idist_select, ...
+function idistKmatch_vKv(idist_kmatch,kDist_vec,poly_match_idistK,polyID,g,pg,xg,idist_select, ...
     idist_kmatch_lSel, channelNum, folderName)
     fig_idistMatch_kv = figure;
     title("top idist vs. kv")
@@ -11,10 +11,7 @@ function idistKmatch_vKv(idist_kmatch,kj_mat,poly_match_idistK,polyID,g,pg,xg,id
             medDist = idist_kmatch(k);
             gaussSelect = poly_match_idistK(k);
             gauss_idx = find(polyID{k} == gaussSelect);
-            mu_gauss = g{k}.mu(gauss_idx);
-            std_gauss = g{k}.Sigma(gauss_idx);
-            gauss_upp = mu_gauss+std_gauss;
-            gauss_low = mu_gauss-std_gauss;
+
             kv = kj_mat{k}(gauss_idx);
             % Find the IDist value for this coefficient number
             inRangeIdx = pk_locs >= gauss_low & pk_locs <= gauss_upp;

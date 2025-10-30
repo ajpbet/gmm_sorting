@@ -105,16 +105,16 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     [idist_sort(:,2),idist_sort(:,1)] = sort(idistVals,"descend");
     
 
-    % change for idist over ks over lay ii double plot
-    % need to lable
-    % fig_k = figure;
-    % plot(maxK_sort(:,2))
-    % title(" max k vals per coeff")
-    % for k = 1:length(maxK_sort(:,2))
-    %    text(k+0.1,maxK_sort(k,2)+0.1,num2str(maxK_sort(k,1))); 
-    % end
-    % filename_kv = fullfile(folderName,sprintf('ch%s_maxKvalsPerCoef.png', channelNum));
-%    exportgraphics(fig_k, filename_kv, 'Resolution', 300);
+    change for idist over ks over lay ii double plot
+    need to lable
+    fig_k = figure;
+    plot(maxK_sort(:,2))
+    title(" max k vals per coeff")
+    for k = 1:length(maxK_sort(:,2))
+       text(k+0.1,maxK_sort(k,2)+0.1,num2str(maxK_sort(k,1))); 
+    end
+    filename_kv = fullfile(folderName,sprintf('ch%s_maxKvalsPerCoef.png', channelNum));
+    exportgraphics(fig_k, filename_kv, 'Resolution', 300);
 
 %% mathing top 3 vals
     maxLen = max(cellfun(@numel, kj_mat));
@@ -301,8 +301,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
      end
     
      %% idist selection criteria knee
-     [idist_select, inputs_idist, idist_kmatch_lSel, sorted_idist, ind_idist] = ...
-         processIdistKnee(idist_kmatch);
+     [idist_select, inputs_idist, idist_kmatch_lSel, sorted_idist, ...
+         ind_idist] = processIdistKnee(idist_kmatch);
 
     %% kv knee(all present gauss after combined gaussian removed)
     % this will detect the knee in all kv values that are not low weight
@@ -334,14 +334,16 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     
     %% coeff plots side by side   
-    plotIdistKsCoeff(sorted_idist, ind_idist, idits_kmatch_lsel, ks_out_full, all_ks, lenKs,folderName,channelNum);
+    plotIdistKsCoeff(sorted_idist, ind_idist, idist_kmatch_lSel, ks_out_full, all_ks, lenKs,folderName,channelNum);
     
     %%
-    plotMaxIDvKS(idistVals, ks_y, ks_d, colors, lenKs, folderName, channelNum)
+
+
+    plotMaxIDvKS(idistVals, all_ks, ks_out_full, colors, lenKs, folderName, channelNum)
 
 
     %% coefficient plot best idist/kj matching
-    plotIdistKmatch(ks_y, ks_d, 13, idist_kmatch, color_idistk, ks_out, idist_select,folderName, channelNum);
+    plotIdistKmatch(all_ks, ks_out_full, lenKs, idist_kmatch, color_idistk, ks_out, idist_select,folderName, channelNum);
 
 
 %% plot all meddist vs k excl. Mcomp
@@ -353,8 +355,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     % plotMedDistVsKv(pg, xg, medDist_vec, polyID, g, kDist_vec, medDist_select, medDist_lSel, ...
     %     k_select,k_lsel,folderName, channelNum);
 %% idist kmatch
-    idistKmatch_vKv(idist_kmatch,kj_mat,poly_match_idistK,polyID,g,pg,xg,medD_sel_noPk, medD_lSel_noPk, ...
-        k_sel_NoPk,k_lSel_NoPk, channelNum, folderName);
+  %  idistKmatch_vKv(idist_kmatch,kj_mat,poly_match_idistK,polyID,g,pg,xg,medD_sel_noPk, medD_lSel_noPk, ...
+     %   k_sel_NoPk,k_lSel_NoPk, channelNum, folderName);
 
     %% code continues
     lenC = length(coeff_nums);
@@ -390,8 +392,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     % plotGaussianClusterAnalysis(g, polyID_M, wd_coeff, cluster_times, ...
     %     coeff_clusters, channelNum, folderSpike,M_comp);
     %%
-    plotClusterCoefficientMap(g_init, share_medDist_top3, comp_shared, wd_coeff, spikes, ...
-       cluster_times, coeff_clusters, channelNum, folderSpike);
+    plotClusterCoefficientMap(g_init, medDist_sortIdx, wd_coeff, spikes, ...
+       cluster_times, coeff_clusters, channelNum, folderName);
 %%
     [kde_pdf,kde_xf] = kde_est(wd_coeff,1:lenC);
     mse_vals = mean_square_error(pg,xg,kde_pdf,kde_xf,1:lenC);

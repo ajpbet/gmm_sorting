@@ -1,4 +1,4 @@
-function plotMedDistVsKv(pg, xg, medDistVector, polyID, g, kj_mat, medD_sel_noPk, medD_lSel_noPk, ...
+function plotMedDistVsKv(pg, xg, medDistVector, polyID, g, kDist_vec, medD_sel_noPk, medD_lSel_noPk, ...
      k_sel_NoPk,k_lSel_NoPk,folderName, channelNum)
 % PLOTMEDDISTVSKV: Plot median distance vs. k-value, highlighting top IDist selections and peak ranges
 %
@@ -23,22 +23,19 @@ function plotMedDistVsKv(pg, xg, medDistVector, polyID, g, kj_mat, medD_sel_noPk
     hold on
 
     % Loop over all coefficients
-    for k = 1:numel(medDistVector)
-        medDist = medDist_sort{k}(z);
-        kv = kj_mat{k}(gauss_idx);
-        gaussSelect = medDist_sortIdx{k}(z);
-        gauss_idx = find(polyID{k} == gaussSelect, 1);
-
-        if isempty(gauss_idx)
-            continue;
-        end
-
+    for k = 1:length(medDistVector(:,1))
+        medDist = medDistVector(k,1);
+        coeff_num = medDistVector(k,2);
+        gauss_idx = medDistVector(k,3);
+        
+        kv_coeffs = kDist_vec(kDist_vec(:,2)==coeff_num,:);
+        kv = kv_coeffs(kv_coeffs(:,3)==gauss_idx); % Retrieve the k-value for the current coefficient
 
         % Determine marker and color based on IDist selection and peak
-        if ismember(k, medD_sel_noPk(:,2))
+        if ismember(coeff_num, medD_sel_noPk(:,2))
             marker = 'o';
             col = 'g';
-        elseif ismember(k,k_sel_NoPk(:,2))
+        elseif ismember(coeff_num,k_sel_NoPk(:,2))
             marker = 'o';
             col = 'b';
         else
@@ -51,7 +48,7 @@ function plotMedDistVsKv(pg, xg, medDistVector, polyID, g, kj_mat, medD_sel_noPk
         scatter(medDist, kv, 80, col, marker, 'LineWidth', 1.5, 'MarkerFaceColor', col);
 
         % Label coefficient number
-        text(medDist, kv + 0.4, num2str(k), ...
+        text(medDist, kv + 0.4, num2str(coeff_num), ...
             'HorizontalAlignment', 'center', ...
             'VerticalAlignment', 'middle', ...
                 'FontSize', 8, 'Color', 'k', 'FontWeight', 'bold');
@@ -60,7 +57,8 @@ function plotMedDistVsKv(pg, xg, medDistVector, polyID, g, kj_mat, medD_sel_noPk
 
     % Add IDist reference line
     xline(medD_sel_noPk(medD_lSel_noPk,1), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder');
-    yline(k_sel_NoPk(k_lSel_NoPk,1), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder'))
+    yline(k_sel_NoPk( ...
+        k_lSel_NoPk,1), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder')
     
     % Create legend handles
     h_m(1) = scatter(NaN, NaN, 80, 'g', 'o', 'filled', 'DisplayName', 'near peak');

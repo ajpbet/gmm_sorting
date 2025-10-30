@@ -1,4 +1,4 @@
-function plotIdistKmatch(ks_y, ks_d, lenKs, idist_kmatch, color_idistk, ks_out, idist_select, folderName, channelNum)
+function plotIdistKmatch(all_ks,ks_out_full, lenKs, idist_kmatch, color_idistk, ks_out, idist_select, folderName, channelNum)
 % PLOTIDISTKMATCH: Plot IDist vs KS values highlighting top KS coefficients
 %
 % Inputs:
@@ -15,6 +15,8 @@ function plotIdistKmatch(ks_y, ks_d, lenKs, idist_kmatch, color_idistk, ks_out, 
 % Example:
 %   plotIdistKmatch(ks_y, ks_d, 13, idist_kmatch, color_idistk, ks_out, idist_select, 'output', '2');
 
+    ks_d = flip(ks_out_full);
+    ks_y = flip(all_ks);
     % Create figure
     fig1st_idistKmatch = figure('Visible', 'on'); % Change to 'off' for silent plotting
     hold on;
