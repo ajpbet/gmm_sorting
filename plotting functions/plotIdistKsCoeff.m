@@ -21,6 +21,8 @@ function plotIdistKsCoeff(sorted_idist, ind_idist, idist_kmatch_lSel, ks_out_ful
     r_sorted_idist = flip(sorted_idist);
     r_ind_idist = flip(ind_idist);
 
+
+
     % Create figure
     fig_idist = figure('Visible', 'on'); % Change to 'off' for batch mode
     hold on
@@ -30,6 +32,7 @@ function plotIdistKsCoeff(sorted_idist, ind_idist, idist_kmatch_lSel, ks_out_ful
     ylabel('IDist Value');
     plot(r_sorted_idist, 'b-', 'DisplayName', 'IDIST');
     
+ 
     % Plot IDist points and markers
     for k = 1:length(r_sorted_idist)
         if k <= idist_kmatch_lSel
@@ -87,7 +90,7 @@ function plotIdistKsCoeff(sorted_idist, ind_idist, idist_kmatch_lSel, ks_out_ful
         channelNum = num2str(channelNum);
     end
     filename_IDKScoeff = fullfile(folderName, sprintf('ch%s_IDKScoeff.png', channelNum));
-    % exportgraphics(fig_idist, filename_IDKScoeff, 'Resolution', 300);
+    exportgraphics(fig_idist, filename_IDKScoeff, 'Resolution', 300);
 
     % Return output path
     if nargout > 0

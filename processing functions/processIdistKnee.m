@@ -28,6 +28,10 @@ function [idist_select, inputs_idist, idist_kmatch_lSel, sorted_idist, ind_idist
 
     % --- Sort IDist values ---
     [sorted_idist, ind_idist] = sort(idist_kmatch);
+
+    non_zero_mask = sorted_idist ~= 0;
+    sorted_idist = sorted_idist(non_zero_mask);
+    ind_idist = ind_idist(non_zero_mask);
     ncoeff = length(sorted_idist);
     maxA_idist = max(sorted_idist);
 

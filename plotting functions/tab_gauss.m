@@ -73,7 +73,7 @@ function tab_gauss(summary_table, channelNum, coeff_idx, g, folderName)    % TAB
         format_axes(ax2, summary_table, coeff_idx, numCoeff, size(gaussVals_nonmcomp, 1), 12);
         add_labels(ax2, gaussVals_nonmcomp, 10);
 
-        % exportgraphics(fig2, fullfile(folderName,sprintf('Channel%s_NonMcomp_Gaussian_Global.png', channelNum)), 'Resolution', 300);
+        exportgraphics(fig2, fullfile(folderName,sprintf('Channel%s_NonMcomp_Gaussian_Global.png', channelNum)), 'Resolution', 300);
     end
 
     % -------- Local colormap - M_comp --------
@@ -113,7 +113,7 @@ function tab_gauss(summary_table, channelNum, coeff_idx, g, folderName)    % TAB
         format_axes(ax4, summary_table, coeff_idx, numCoeff, size(gaussVals_nonmcomp, 1), 12);
         add_labels(ax4, gaussVals_nonmcomp, 10);
 
-        % exportgraphics(fig4, fullfile(folderName,sprintf('Channel%s_NonMcomp_Gaussian_Local.png', channelNum)), 'Resolution', 300);
+        exportgraphics(fig4, fullfile(folderName,sprintf('Channel%s_NonMcomp_Gaussian_Local.png', channelNum)), 'Resolution', 300);
     end
 end
 

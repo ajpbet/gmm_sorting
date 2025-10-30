@@ -72,7 +72,7 @@ function plotMaxIDvKS(idistVals, all_ks, ks_out_full, colors, lenKs, folderName,
         mkdir(folderName);
     end
     filename_MaxIDvKS = fullfile(folderName, sprintf('ch%s_MaxIDvKS.png', channelNum));
-    % exportgraphics(fig_maxIDvKS, filename_MaxIDvKS, 'Resolution', 300);
+    exportgraphics(fig_maxIDvKS, filename_MaxIDvKS, 'Resolution', 300);
     
 
 end

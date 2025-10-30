@@ -89,5 +89,5 @@ function plotIdistKmatch(all_ks,ks_out_full, lenKs, idist_kmatch, color_idistk, 
         channelNum = num2str(channelNum);
     end
     filename_idistKmatch = fullfile(folderName, sprintf('ch%s_idistKmatch.png', channelNum));
-    % exportgraphics(fig1st_idistKmatch, filename_idistKmatch, 'Resolution', 300);
+    exportgraphics(fig1st_idistKmatch, filename_idistKmatch, 'Resolution', 300);
 end

@@ -55,7 +55,7 @@ function [k_select,k_lSel,kDist_vec] = KvKneeNoPkExc(k_sort, k_sortIdx,pg_init,g
 
     % --- Keep only top max candidates for knee detection ---
     minVal = 1;
-    maxVal = 64;
+    maxVal = length(kVector_sort);
     top_candidates = sorted_vals(end-maxVal+1:end);
     top_indices    = sorted_idx(end-maxVal+1:end);
     top_gauss      = sorted_gauss(end-maxVal+1:end);

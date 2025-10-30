@@ -63,6 +63,6 @@ function pltSelect(len_select,vector,channelNum,folderName,plotID)
     end
 
     filename = fullfile(folderName, sprintf('ch%s_plt_%s.png', channelNum,plot_type));
-    % exportgraphics(fig, filename, 'Resolution', 300);
+    exportgraphics(fig, filename, 'Resolution', 300);
 
 end

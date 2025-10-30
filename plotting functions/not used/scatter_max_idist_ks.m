@@ -54,4 +54,4 @@ function scatter_max_idist_ks(ks_d,ks_y,lenKs)
     legend([h_match, h_ks], 'Location', 'best');
     hold off;
     filename_MaxIDvKS = fullfile(folderName,sprintf('ch%s_MaxIDvKS.png', channelNum));
-    % exportgraphics(fig_maxIDvKS, filename_MaxIDvKS, 'Resolution', 300);
+    exportgraphics(fig_maxIDvKS, filename_MaxIDvKS, 'Resolution', 300);

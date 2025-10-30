@@ -23,6 +23,16 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         mkdir(folderSpike);
     end
 
+    folderAllPk = fullfile(folderName, 'allPk');
+    if ~exist(folderAllPk, 'dir')
+        mkdir(folderAllPk);
+    end
+
+    folderExcPk = fullfile(folderName, 'excPk');
+    if ~exist(folderExcPk, 'dir')
+        mkdir(folderExcPk);
+    end
+
     %% function to save figs or not (no save faster)
     saveFigs = true;
 
@@ -83,7 +93,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
 
     %% plot k values in a table with all coefficeints
-    tab_gauss(summary_table,channelNum,[],g,folderName);
+   % tab_gauss(summary_table,channelNum,[],g,folderName);
     %% plot only good coeffs or plot top coeffs
     plot_all = true;
     exc_combPdf = true;
@@ -107,13 +117,13 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     % change for idist over ks over lay ii double plot
     % need to lable
-    fig_k = figure;
-    plot(maxK_sort(:,2))
-    title(" max k vals per coeff")
-    for k = 1:length(maxK_sort(:,2))
-       text(k+0.1,maxK_sort(k,2)+0.1,num2str(maxK_sort(k,1))); 
-    end
-    filename_kv = fullfile(folderName,sprintf('ch%s_maxKvalsPerCoef.png', channelNum));
+    % fig_k = figure;
+    % plot(maxK_sort(:,2))
+    % title(" max k vals per coeff")
+    % for k = 1:length(maxK_sort(:,2))
+    %    text(k+0.1,maxK_sort(k,2)+0.1,num2str(maxK_sort(k,1))); 
+    % end
+    % filename_kv = fullfile(folderName,sprintf('ch%s_maxKvalsPerCoef.png', channelNum));
   %  exportgraphics(fig_k, filename_kv, 'Resolution', 300);
 
 %% mathing top 3 vals
@@ -314,10 +324,11 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     [k_sel_NoPk,k_lSel_NoPk,kDist_vec_NoPk] = KvKneeNoPkExc(k_sort, k_sortIdx,pg,g_init,xg);
 
     % plotting functions for with and without "near peak" exclusion
-    pltSelect(k_lSel,kDist_vec,channelNum,folderName,1);
+    pltSelect(k_lSel,kDist_vec,channelNum,folderAllPk,1);
 
     %plot without peak (same format just less var
-    pltSelect(k_lSel_NoPk,kDist_vec_NoPk,channelNum,folderName,2);
+    pltSelect(k_lSel_NoPk,kDist_vec_NoPk,channelNum,folderExcPk,2);
+
     %% meddist knee (all present gauss after combined gaussian removed)
     [medDist_select, medDist_lSel,medDist_vec] = processMedDistKnee(medDist_sort, medDist_sortIdx);    %% kv plot all vals with knee (all present gauss after combined gaussian removed)
     % medDist_vec has struc [medDist,coeff#,component(gauss)#]
@@ -328,12 +339,14 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     pg,g_init,xg);
 
     % plotting functions for both
-    pltSelect(medDist_lSel,medDist_vec,channelNum,folderName,3);
-    pltSelect(medD_lSel_noPk,medD_vec_noPk,channelNum,folderName,4);
-    %% meddist plot all vals with knee (all present gauss after combined gaussian removed)
+    pltSelect(medDist_lSel,medDist_vec,channelNum,folderAllPk,3);
+
+    %plot without peak (same format just less var
+    pltSelect(medD_lSel_noPk,medD_vec_noPk,channelNum,folderExcPk,4);
 
     
     %% coeff plots side by side   
+    
     plotIdistKsCoeff(sorted_idist, ind_idist, idist_kmatch_lSel, ks_out_full, all_ks, lenKs,folderName,channelNum);
     
     %%
@@ -345,15 +358,21 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     %% coefficient plot best idist/kj matching
     plotIdistKmatch(all_ks, ks_out_full, lenKs, idist_kmatch, color_idistk, ks_out, idist_select,folderName, channelNum);
 
+   %% Exclusion criterion
+   % with all peaks
+    [threshQ2,threshQ4,select_gauss] = lineExclusion(medDist_vec,medDist_select, ...
+        k_select,kDist_vec);
+   % without variables not near a peak
+    [threshQ2noPk,threshQ4noPk,select_gaussnoPk] = lineExclusion(medD_vec_noPk,medD_sel_noPk, ...
+        k_sel_NoPk,kDist_vec_NoPk);
 
 %% plot all meddist vs k excl. Mcomp
 % non peaks excluded
-    plotMedDistVsKv(pg, xg, medD_vec_noPk, polyID, g, kDist_vec_NoPk, medD_sel_noPk, medD_lSel_noPk, ...
-        k_sel_NoPk,k_lSel_NoPk,folderName, channelNum);
+    plotMedDistVsKv(medD_vec_noPk,kDist_vec_NoPk, medD_sel_noPk, ...
+        k_sel_NoPk,select_gauss,folderExcPk, channelNum,2);
 
     % nonPeaks included
-    plotMedDistVsKv(pg, xg, medDist_vec, polyID, g, kDist_vec, medDist_select, medDist_lSel, ...
-         k_select,k_lSel,folderName, channelNum);
+    plotMedDistVsKv(medDist_vec,kDist_vec,medDist_select,k_select,select_gauss,folderAllPk, channelNum,1);
 %% idist kmatch
   %  idistKmatch_vKv(idist_kmatch,kj_mat,poly_match_idistK,polyID,g,pg,xg,medD_sel_noPk, medD_lSel_noPk, ...
      %   k_sel_NoPk,k_lSel_NoPk, channelNum, folderName);
@@ -392,8 +411,11 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     % plotGaussianClusterAnalysis(g, polyID_M, wd_coeff, cluster_times, ...
     %     coeff_clusters, channelNum, folderSpike,M_comp);
     %%
-    plotClusterCoefficientMap(g_init, medDist_sortIdx, wd_coeff, spikes, ...
-       cluster_times, coeff_clusters, channelNum, folderName);
+    plotClusterCoefficientMap(g, medDist_vec, wd_coeff, spikes, cluster_times, coeff_clusters, select_gauss, ...
+        channelNum,folderAllPk,1);
+
+    plotClusterCoefficientMap(g, medD_vec_noPk, wd_coeff, spikes, cluster_times, coeff_clusters, select_gaussnoPk, ...
+        channelNum,folderExcPk,2)
 %%
     [kde_pdf,kde_xf] = kde_est(wd_coeff,1:lenC);
     mse_vals = mean_square_error(pg,xg,kde_pdf,kde_xf,1:lenC);

@@ -44,7 +44,7 @@ function [medDist_select,medDist_lSel,medDist_vec] = processMedDistKnee(medDist_
 
     % --- Keep only top max candidates for knee detection ---
     minVal = 1;
-    maxVal = 64;
+    maxVal = length(medVector_sort);
     top_candidates = sorted_vals(end-maxVal+1:end);
     top_indices    = sorted_idx(end-maxVal+1:end);
     top_gauss      = sorted_gauss(end-maxVal+1:end);
