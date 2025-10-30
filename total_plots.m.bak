@@ -79,7 +79,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     
 %% distribution of kvalues
- %   kv_dist(summary_table, channelNum, folderName,g)
+%    kv_dist(summary_table, channelNum, folderName,g)
 
 
     %% plot k values in a table with all coefficeints
@@ -107,14 +107,14 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     % change for idist over ks over lay ii double plot
     % need to lable
-    % fig_k = figure;
-    % plot(maxK_sort(:,2))
-    % title(" max k vals per coeff")
-    % for k = 1:length(maxK_sort(:,2))
-    %    text(k+0.1,maxK_sort(k,2)+0.1,num2str(maxK_sort(k,1))); 
-    % end
-    % filename_kv = fullfile(folderName,sprintf('ch%s_maxKvalsPerCoef.png', channelNum));
-%    exportgraphics(fig_k, filename_kv, 'Resolution', 300);
+    fig_k = figure;
+    plot(maxK_sort(:,2))
+    title(" max k vals per coeff")
+    for k = 1:length(maxK_sort(:,2))
+       text(k+0.1,maxK_sort(k,2)+0.1,num2str(maxK_sort(k,1))); 
+    end
+    filename_kv = fullfile(folderName,sprintf('ch%s_maxKvalsPerCoef.png', channelNum));
+    exportgraphics(fig_k, filename_kv, 'Resolution', 300);
 
 %% mathing top 3 vals
     maxLen = max(cellfun(@numel, kj_mat));
@@ -311,13 +311,10 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     [k_select,k_lSel,kDist_vec] = processKvKnee(k_sort, k_sortIdx);
 
     % process k knee when gaussians not near a peak are exluded
-    [k_sel_NoPk,k_lSel_NoPk,kDist_vec_NoPk] = KvKneeNoPkExc(k_sort, k_sortIdx,pg,g_init,xg);
+    [k_sel_NoPk,k_lSel_NoPk,kDist_vec_NoPk] = KvKneeNoPkExc(k_sort, k_sortIdx,pg_init,g_init,xg_init);
 
     % plotting functions for with and without "near peak" exclusion
-    pltSelect(k_lSel,kDist_vec,channelNum,folderName,1);
 
-    %plot without peak (same format just less var
-    pltSelect(k_lSel_NoPk,kDist_vec_NoPk,channelNum,folderName,1);
     %% meddist knee (all present gauss after combined gaussian removed)
     [medDist_select, medDist_lSel,medDist_vec] = processMedDistKnee(medDist_sort, medDist_sortIdx);    %% kv plot all vals with knee (all present gauss after combined gaussian removed)
     % medDist_vec has struc [medDist,coeff#,component(gauss)#]
@@ -325,16 +322,15 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     % process medDist when gaussians not near a peak are excluded
     [medD_sel_noPk,medD_lSel_noPk,medD_vec_noPk] = medDistKneeNoPkExc(medDist_sort, medDist_sortIdx, ...
-    pg,g_init,xg);
+    pg_init,g_init,xg_init);
 
     % plotting functions for both
-    pltSelect(medDist_lSel,medDist_vec,channelNum,folderName,3);
-    pltSelect(medD_lSel_noPk,medD_vec_noPk,channelNum,folderName,4);
+
     %% meddist plot all vals with knee (all present gauss after combined gaussian removed)
 
     
     %% coeff plots side by side   
-    plotIdistKsCoeff(sorted_idist, ind_idist, idits_kmatch_lsel, ks_out_full, all_ks, lenKs,folderName,channelNum);
+    plotIdistKsCoeff(sorted_idist, ind_idist, 13, ks_out_full, all_ks, 13,folderName,channelNum);
     
     %%
     plotMaxIDvKS(idistVals, ks_y, ks_d, colors, lenKs, folderName, channelNum)
@@ -390,7 +386,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     % plotGaussianClusterAnalysis(g, polyID_M, wd_coeff, cluster_times, ...
     %     coeff_clusters, channelNum, folderSpike,M_comp);
     %%
-    plotClusterCoefficientMap(g_init, share_medDist_top3, comp_shared, wd_coeff, spikes, ...
+   plotClusterCoefficientMap(g_init, share_medDist_top3, comp_shared, wd_coeff, spikes, ...
        cluster_times, coeff_clusters, channelNum, folderSpike);
 %%
     [kde_pdf,kde_xf] = kde_est(wd_coeff,1:lenC);

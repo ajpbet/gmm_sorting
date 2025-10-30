@@ -6,7 +6,6 @@ function [medDist_select,medDist_lSel,medDist_vec] = medDistKneeNoPkExc(medDist_
 
     numCells = numel(medDist_sort);
     medDist_select = cell(numCells, 1);
-    medDist_lSel   = zeros(numCells, 1);
 
     % expands data into 2D vector, col 1 is medDist
     % and col 2 is coeff num (only used for plotting)
@@ -41,6 +40,9 @@ function [medDist_select,medDist_lSel,medDist_vec] = medDistKneeNoPkExc(medDist_
     end
     
     % Sort by the first column (medDist values)
+
+    medDist_vector = medDist_vector(medDist_vector(:, 1) ~= 0, :); % Remove rows with zero values
+
     [medVector_sort, medVectorIdx] = sort(medDist_vector(:, 1));
     medVector_sortCoeff = medDist_vector(medVectorIdx, 2);
     medVector_sortGauss = medDist_vector(medVectorIdx, 3);    
@@ -89,12 +91,16 @@ function [medDist_select,medDist_lSel,medDist_vec] = medDistKneeNoPkExc(medDist_
         inputs = minVal;
     end
     
-    % --- Select top coefficients ---
+    % --- Select top coefficients --
+    l_medSelect = length(top_indices(end:-1:end-inputs+1));
+    medDist_select = zeros(l_medSelect, 3);
+
+   
     coeff_idx = top_indices(end:-1:end-inputs+1);
     gauss_idx = top_gauss(end:-1:end-inputs+1);
-    medDist_select{k}(:,1) = coeff_idx;           % coefficient indices
-    medDist_select{k}(:,2) = medDist_k(coeff_idx);% corresponding values
-    medDist_select{k}(:,3) = gauss_idx;
-    medDist_lSel(k) = length(coeff_idx);
+    medDist_select(:,2) = coeff_idx;           % coefficient indices
+    medDist_select(:,1) = medVector_sort(end:-1:end-inputs+1);% corresponding values
+    medDist_select(:,3) = gauss_idx;
+    medDist_lSel= length(coeff_idx);
 
 end

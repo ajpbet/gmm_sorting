@@ -1,45 +1,44 @@
-function [k_select,k_lSel,kDist_vec] = processKvKnee(k_sort, k_sortIdx)
+function [medDist_select,medDist_lSel,medDist_vec] = processMedDistKnee(medDist_sort, medDist_sortIdx)
 % processMedDistKnee:
 % Applies knee detection to each cell of medDist_sort using the same algorithm
 % as processIdistKnee. Assumes each medDist_sort{k} is sorted ascending.
 
-    numCells = numel(k_sort);
-    k_lSel   = zeros(numCells, 1);
+    numCells = numel(medDist_sort);
+    medDist_select = cell(numCells, 1);
+    medDist_lSel   = zeros(numCells, 1);
 
     % expands data into 2D vector, col 1 is medDist
     % and col 2 is coeff num (only used for plotting)
   % Calculate total number of elements for proper pre-allocation
-    totalElements = sum(cellfun(@length, k_sort));
-    k_vector = zeros(totalElements, 3);
+    totalElements = sum(cellfun(@length, medDist_sort));
+    medDist_vector = zeros(totalElements, 3);
     count = 0;
     
     % Expand all medDist to one vector
     for k = 1:numCells
-        kV_k = k_sort{k};
-        kv_Gidx = k_sortIdx{k};
-        numElements = length(kV_k);
+        medDist_k = medDist_sort{k};
+        medDist_Gidx = medDist_sortIdx{k};
+        numElements = length(medDist_k);
         
         % Fill the appropriate section
         indices = count + (1:numElements);
-        k_vector(indices, 1) = kV_k;          % medDist values
-        k_vector(indices, 2) = k;                  % cell indices
-        k_vector(indices,3) = kv_Gidx;
+        medDist_vector(indices, 1) = medDist_k;          % medDist values
+        medDist_vector(indices, 2) = k;                  % cell indices
+        medDist_vector(indices,3) = medDist_Gidx;
         count = count + numElements;
     end
     
     % Sort by the first column (medDist values)
-    % remove zeros k_vector
-    k_vector = k_vector(k_vector(:, 1) ~= 0, :); % Remove rows with zero values
-    [kVector_sort, kVectorIdx] = sort(k_vector(:, 1));
-    kVector_sortCoeff = k_vector(kVectorIdx, 2);
-    kVector_sortGauss = k_vector(kVectorIdx, 3);    
+    [medVector_sort, medVectorIdx] = sort(medDist_vector(:, 1));
+    medVector_sortCoeff = medDist_vector(medVectorIdx, 2);
+    medVector_sortGauss = medDist_vector(medVectorIdx, 3);    
     
-    kDist_vec = [kVector_sort,kVector_sortCoeff, ...
-        kVector_sortGauss];
+    medDist_vec = [medVector_sort,medVector_sortCoeff, ...
+        medVector_sortGauss];
     
-    sorted_vals = kVector_sort;
-    sorted_idx  = kVector_sortCoeff;
-    sorted_gauss = kVector_sortGauss;
+    sorted_vals = medVector_sort;
+    sorted_idx  = medVector_sortCoeff;
+    sorted_gauss = medVector_sortGauss;
 
     % --- Keep only top max candidates for knee detection ---
     minVal = 1;
@@ -79,14 +78,11 @@ function [k_select,k_lSel,kDist_vec] = processKvKnee(k_sort, k_sortIdx)
     end
     
     % --- Select top coefficients ---
-    leng_select = length(top_indices(end:-1:end-inputs+1));
-    k_select = zeros(leng_select, 3);
-
     coeff_idx = top_indices(end:-1:end-inputs+1);
     gauss_idx = top_gauss(end:-1:end-inputs+1);
-    k_select(:,2) = coeff_idx;           % coefficient indices
-    k_select(:,1) = kVector_sort(end:-1:end-inputs+1);% corresponding values
-    k_select(:,3) = gauss_idx;
-    k_lSel = length(coeff_idx);
+    medDist_select{k}(:,1) = coeff_idx;           % coefficient indices
+    medDist_select{k}(:,2) = medDist_k(coeff_idx);% corresponding values
+    medDist_select{k}(:,3) = gauss_idx;
+    medDist_lSel(k) = length(coeff_idx);
 
 end

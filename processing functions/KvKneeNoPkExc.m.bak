@@ -4,6 +4,7 @@ function [k_select,k_lSel,kDist_vec] = KvKneeNoPkExc(k_sort, k_sortIdx,pg_init,g
 % as processIdistKnee. Assumes each medDist_sort{k} is sorted ascending.
 
     numCells = numel(k_sort);
+    k_select = cell(numCells, 1);
     k_lSel   = zeros(numCells, 1);
 
     % expands data into 2D vector, col 1 is medDist
@@ -39,9 +40,6 @@ function [k_select,k_lSel,kDist_vec] = KvKneeNoPkExc(k_sort, k_sortIdx,pg_init,g
     end
     
     % Sort by the first column (medDist values)
-    %remove zeros in vector
-    k_vector = k_vector(k_vector(:, 1) ~= 0, :); % Remove rows with zero values
-
     [kVector_sort, kVectorIdx] = sort(k_vector(:, 1));
     kVector_sortCoeff = k_vector(kVectorIdx, 2);
     kVector_sortGauss = k_vector(kVectorIdx, 3);    
@@ -91,14 +89,11 @@ function [k_select,k_lSel,kDist_vec] = KvKneeNoPkExc(k_sort, k_sortIdx,pg_init,g
     end
     
     % --- Select top coefficients ---
-    leng_select = length(top_indices(end:-1:end-inputs+1));
-    k_select = zeros(leng_select, 3);
-
     coeff_idx = top_indices(end:-1:end-inputs+1);
     gauss_idx = top_gauss(end:-1:end-inputs+1);
-    k_select(:,2) = coeff_idx;           % coefficient indices
-    k_select(:,1) = kVector_sort(end:-1:end-inputs+1);% corresponding values
-    k_select(:,3) = gauss_idx;
-    k_lSel = length(coeff_idx);
+    k_select{k}(:,1) = coeff_idx;           % coefficient indices
+    k_select{k}(:,2) = kV_k(coeff_idx);% corresponding values
+    k_select{k}(:,3) = gauss_idx;
+    k_lSel(k) = length(coeff_idx);
 
 end

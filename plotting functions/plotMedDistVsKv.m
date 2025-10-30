@@ -1,4 +1,5 @@
-function plotMedDistVsKv(pg, xg, medDist_sort, medDist_sortIdx, polyID, g, kj_mat, idist_select, idist_kmatch_lSel, folderName, channelNum)
+function plotMedDistVsKv(pg, xg, medDistVector, polyID, g, kj_mat, medD_sel_noPk, medD_lSel_noPk, ...
+     k_sel_NoPk,k_lSel_NoPk,folderName, channelNum)
 % PLOTMEDDISTVSKV: Plot median distance vs. k-value, highlighting top IDist selections and peak ranges
 %
 % Inputs:
@@ -22,56 +23,45 @@ function plotMedDistVsKv(pg, xg, medDist_sort, medDist_sortIdx, polyID, g, kj_ma
     hold on
 
     % Loop over all coefficients
-    for k = 1:numel(medDist_sortIdx)
-        [pk_vals, pk_locs, pk_widths] = findpeaks(pg{k}, xg{k}, 'WidthReference', 'halfheight');
-        if isempty(medDist_sortIdx{k})
+    for k = 1:numel(medDistVector)
+        medDist = medDist_sort{k}(z);
+        kv = kj_mat{k}(gauss_idx);
+        gaussSelect = medDist_sortIdx{k}(z);
+        gauss_idx = find(polyID{k} == gaussSelect, 1);
+
+        if isempty(gauss_idx)
             continue;
         end
 
-        for z = 1:length(medDist_sortIdx{k})
-            medDist = medDist_sort{k}(z);
-            gaussSelect = medDist_sortIdx{k}(z);
-            gauss_idx = find(polyID{k} == gaussSelect, 1);
 
-            if isempty(gauss_idx)
-                continue;
-            end
-
-            mu_gauss = g{k}.mu(gauss_idx);
-            std_gauss = g{k}.Sigma(gauss_idx);
-            gauss_upp = mu_gauss + std_gauss;
-            gauss_low = mu_gauss - std_gauss;
-            kv = kj_mat{k}(gauss_idx);
-
-            % Check if a peak falls within Gaussian range
-            inRangeIdx = pk_locs >= gauss_low & pk_locs <= gauss_upp;
-            hasPeakInRange = any(inRangeIdx);
-
-            % Determine marker and color based on IDist selection and peak
-            if ismember(k, idist_select(:,1))
-                marker = 'o';
-                col = 'g' * hasPeakInRange + 'r' * (~hasPeakInRange);
-                col = char(col);
-            else
-                marker = 'x';
-                col = 'g' * hasPeakInRange + 'r' * (~hasPeakInRange);
-                col = char(col);
-            end
-
-            % Plot scatter point
-            scatter(medDist, kv, 80, col, marker, 'LineWidth', 1.5, 'MarkerFaceColor', col);
-
-            % Label coefficient number
-            text(medDist, kv + 0.4, num2str(k), ...
-                'HorizontalAlignment', 'center', ...
-                'VerticalAlignment', 'middle', ...
-                'FontSize', 8, 'Color', 'k', 'FontWeight', 'bold');
+        % Determine marker and color based on IDist selection and peak
+        if ismember(k, medD_sel_noPk(:,2))
+            marker = 'o';
+            col = 'g';
+        elseif ismember(k,k_sel_NoPk(:,2))
+            marker = 'o';
+            col = 'b';
+        else
+            marker = 'x';
+            col = 'r';
+            
         end
+
+        % Plot scatter point
+        scatter(medDist, kv, 80, col, marker, 'LineWidth', 1.5, 'MarkerFaceColor', col);
+
+        % Label coefficient number
+        text(medDist, kv + 0.4, num2str(k), ...
+            'HorizontalAlignment', 'center', ...
+            'VerticalAlignment', 'middle', ...
+                'FontSize', 8, 'Color', 'k', 'FontWeight', 'bold');
+        
     end
 
     % Add IDist reference line
-    xline(idist_select(idist_kmatch_lSel,2), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder');
-
+    xline(medD_sel_noPk(medD_lSel_noPk,1), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder');
+    yline(k_sel_NoPk(k_lSel_NoPk,1), '--', 'Color', 'b', 'LineWidth', 1.5, 'DisplayName', 'IDist placeholder'))
+    
     % Create legend handles
     h_m(1) = scatter(NaN, NaN, 80, 'g', 'o', 'filled', 'DisplayName', 'near peak');
     h_m(2) = scatter(NaN, NaN, 80, 'r', 'o', 'filled', 'DisplayName', 'no peak');
