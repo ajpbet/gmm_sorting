@@ -149,7 +149,7 @@ function plotGaussianClusterAnalysis(g, polyID_M, wd_coeff, cluster_times, coeff
     end
     mainFig = fullfile(folderSpike, sprintf('ch%s_gaussClusterTable.png', channelNum));
     legFig  = fullfile(folderSpike, sprintf('ch%s_clusterLegend.png', channelNum));
-    exportgraphics(fig, mainFig, 'Resolution', 300);
+    % exportgraphics(fig, mainFig, 'Resolution', 300);
 
     fprintf('Saved:\n- %s\n- %s\n', mainFig, legFig);
 end

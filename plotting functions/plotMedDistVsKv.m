@@ -78,5 +78,5 @@ function plotMedDistVsKv(pg, xg, medDistVector, polyID, g, kDist_vec, medD_sel_n
         channelNum = num2str(channelNum);
     end
     filename_meddist_kv = fullfile(folderName, sprintf('ch%s_medD_v_kv.png', channelNum));
-    exportgraphics(fig_meddist_kv, filename_meddist_kv, 'Resolution', 300);
+    %exportgraphics(fig_meddist_kv, filename_meddist_kv, 'Resolution', 300);
 end

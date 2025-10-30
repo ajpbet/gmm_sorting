@@ -79,11 +79,11 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
     
 %% distribution of kvalues
- %   kv_dist(summary_table, channelNum, folderName,g)
+    kv_dist(summary_table, channelNum, folderName,g)
 
 
     %% plot k values in a table with all coefficeints
- %   tab_gauss(summary_table,channelNum,[],g,folderName);
+    tab_gauss(summary_table,channelNum,[],g,folderName);
     %% plot only good coeffs or plot top coeffs
     plot_all = true;
     exc_combPdf = true;
@@ -114,7 +114,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
        text(k+0.1,maxK_sort(k,2)+0.1,num2str(maxK_sort(k,1))); 
     end
     filename_kv = fullfile(folderName,sprintf('ch%s_maxKvalsPerCoef.png', channelNum));
-    exportgraphics(fig_k, filename_kv, 'Resolution', 300);
+  %  exportgraphics(fig_k, filename_kv, 'Resolution', 300);
 
 %% mathing top 3 vals
     maxLen = max(cellfun(@numel, kj_mat));
@@ -317,7 +317,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     pltSelect(k_lSel,kDist_vec,channelNum,folderName,1);
 
     %plot without peak (same format just less var
-    pltSelect(k_lSel_NoPk,kDist_vec_NoPk,channelNum,folderName,1);
+    pltSelect(k_lSel_NoPk,kDist_vec_NoPk,channelNum,folderName,2);
     %% meddist knee (all present gauss after combined gaussian removed)
     [medDist_select, medDist_lSel,medDist_vec] = processMedDistKnee(medDist_sort, medDist_sortIdx);    %% kv plot all vals with knee (all present gauss after combined gaussian removed)
     % medDist_vec has struc [medDist,coeff#,component(gauss)#]
@@ -352,8 +352,8 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         k_sel_NoPk,k_lSel_NoPk,folderName, channelNum);
 
     % nonPeaks included
-    % plotMedDistVsKv(pg, xg, medDist_vec, polyID, g, kDist_vec, medDist_select, medDist_lSel, ...
-    %     k_select,k_lsel,folderName, channelNum);
+    plotMedDistVsKv(pg, xg, medDist_vec, polyID, g, kDist_vec, medDist_select, medDist_lSel, ...
+         k_select,k_lSel,folderName, channelNum);
 %% idist kmatch
   %  idistKmatch_vKv(idist_kmatch,kj_mat,poly_match_idistK,polyID,g,pg,xg,medD_sel_noPk, medD_lSel_noPk, ...
      %   k_sel_NoPk,k_lSel_NoPk, channelNum, folderName);
@@ -571,7 +571,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 
         
         filename_spike = fullfile(folderSpike,sprintf('ch%s_coeff%02d_spikes.png', channelNum, coeff_num));
-        exportgraphics(popupFig, filename_spike, 'Resolution', 300);
+   %     exportgraphics(popupFig, filename_spike, 'Resolution', 300);
         figure(fig);
         % >>> detect critical points on KDE (peaks & inflection) <<<
         xx_kde = xg{coeff_num}(:);
@@ -817,7 +817,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
         drawnow;
 
         filename_pdf = fullfile(folderSpike,sprintf('ch%s_coeff%02d_pdf.png', channelNum, coeff_num));
-        exportgraphics(fig, filename_pdf, 'Resolution', 300);
+     %   exportgraphics(fig, filename_pdf, 'Resolution', 300);
     end
 end
 

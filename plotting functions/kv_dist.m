@@ -91,7 +91,7 @@ function kv_dist(summary_table, channelNum, folderName,g)
     end
     
     % Save with absolute path
-    saveas(fig, fullfile(absolute_folder, sprintf('kj_distributions_ch%s.png', channelNum)));
+    % saveas(fig, fullfile(absolute_folder, sprintf('kj_distributions_ch%s.png', channelNum)));
     hold off;
     
     % Display summary statistics

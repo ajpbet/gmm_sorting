@@ -61,6 +61,6 @@ function idistKmatch_vKv(idist_kmatch,kDist_vec,poly_match_idistK,polyID,g,pg,xg
     xlabel('idistKmatch v kVal Values');
     ylabel('K Values'); 
     filename_idistMatch_kv = fullfile(folderName,sprintf('ch%s_idistKmatch_kv.png', channelNum));
-    exportgraphics(fig_idistMatch_kv, filename_idistMatch_kv, 'Resolution', 300);
+    % exportgraphics(fig_idistMatch_kv, filename_idistMatch_kv, 'Resolution', 300);
 
 end

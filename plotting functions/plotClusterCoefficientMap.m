@@ -168,8 +168,8 @@ function plotClusterCoefficientMap(g, polyID_M, wd_coeff, spikes, cluster_times,
     if ~exist(folderSpike, 'dir')
         mkdir(folderSpike);
     end
-    exportgraphics(fig1, fullfile(folderSpike, sprintf('ch%s_cluster_coeff_maxPct.png', num2str(channelNum))), 'Resolution', 300);
-    exportgraphics(fig2, fullfile(folderSpike, sprintf('ch%s_cluster_coeff_winner.png', num2str(channelNum))), 'Resolution', 300);
+    % exportgraphics(fig1, fullfile(folderSpike, sprintf('ch%s_cluster_coeff_maxPct.png', num2str(channelNum))), 'Resolution', 300);
+    % exportgraphics(fig2, fullfile(folderSpike, sprintf('ch%s_cluster_coeff_winner.png', num2str(channelNum))), 'Resolution', 300);
 
     fprintf('Saved two heatmaps to %s\n', folderSpike);
 end

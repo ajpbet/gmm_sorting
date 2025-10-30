@@ -54,5 +54,5 @@ function plot_idist_ks(sorted_idist, ind_idist, idist_kmatch_lSel, ks_out_full, 
 
     hold off;
     filename_IDKScoeff = fullfile(folderName,sprintf('ch%s_IDKScoeff.png', channelNum));
-    exportgraphics(fig_idist, filename_IDKScoeff, 'Resolution', 300);
+    % exportgraphics(fig_idist, filename_IDKScoeff, 'Resolution', 300);
 end
