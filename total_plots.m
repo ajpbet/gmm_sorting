@@ -369,7 +369,7 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
 %% plot all meddist vs k excl. Mcomp
 % non peaks excluded
     plotMedDistVsKv(medD_vec_noPk,kDist_vec_NoPk, medD_sel_noPk, ...
-        k_sel_NoPk,select_gauss,folderExcPk, channelNum,2);
+        k_sel_NoPk,select_gaussnoPk,folderExcPk, channelNum,2);
 
     % nonPeaks included
     plotMedDistVsKv(medDist_vec,kDist_vec,medDist_select,k_select,select_gauss,folderAllPk, channelNum,1);
@@ -411,10 +411,10 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     % plotGaussianClusterAnalysis(g, polyID_M, wd_coeff, cluster_times, ...
     %     coeff_clusters, channelNum, folderSpike,M_comp);
     %%
-    plotClusterCoefficientMap(g, medDist_vec, wd_coeff, spikes, cluster_times, coeff_clusters, select_gauss, ...
+    plotClusterCoefficientMap(g_init, medDist_vec, wd_coeff, spikes, cluster_times, coeff_clusters, select_gauss, ...
         channelNum,folderAllPk,1);
 
-    plotClusterCoefficientMap(g, medD_vec_noPk, wd_coeff, spikes, cluster_times, coeff_clusters, select_gaussnoPk, ...
+    plotClusterCoefficientMap(g_init, medD_vec_noPk, wd_coeff, spikes, cluster_times, coeff_clusters, select_gaussnoPk, ...
         channelNum,folderExcPk,2)
 %%
     [kde_pdf,kde_xf] = kde_est(wd_coeff,1:lenC);
