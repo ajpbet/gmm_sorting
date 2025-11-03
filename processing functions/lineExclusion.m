@@ -1,81 +1,255 @@
-function [threshQ2, threshQ4, select_gauss] = lineExclusion(medDist_vec, medDist_select, k_select, kDist_vec)
-    % LINEEXCLUSION:
-    % Draw Q2 and Q4 threshold lines limited to their quadrants,
-    % match medDist and kDist by [coeff#, gauss#], and select
-    % points above/right of each within their quadrants. Plots results.
-    %
-    % Output:
-    %   threshQ2     - [slope, intercept] for Q2 line
-    %   threshQ4     - [slope, intercept] for Q4 line
-    %   select_gauss - [medDist, k_value, coeff#, gauss#] of selected points
+function [select_gauss_orig, select_gauss_1pct, select_gauss_2_5pct, select_gauss_5pct, select_gauss_10pct, select_all] = lineExclusion(medDist_vec, medDist_select, k_select, kDist_vec, folderName, channelNum)
+% LINEEXCLUSION (Final: Updated with Quadrant-Specific Trimming Logic and Two Optional Plots)
+% Builds Q2/Q4 threshold lines, iteratively trims based on quadrant-specific distance,
+% and returns selected Gaussians while optionally saving two figures.
 
-    %% --- Compute limits
-    maxKv = max(kDist_vec(:,1));
-    minKv = min(kDist_vec(:,1));
-    maxMedDist = max(medDist_vec(:,1));
-    minMedDist = min(medDist_vec(:,1));
+% --- Default/Optional Input Handling ---
+if nargin < 5, folderName = ''; end 
+if nargin < 6, channelNum = ''; end 
+
+plot_and_save = ~isempty(folderName) && ~isempty(channelNum); 
+
+%% --- INITIALIZATION & DATA MATCHING ---
+maxKv = max(kDist_vec(:,1));
+minKv = min(kDist_vec(:,1));
+maxMedDist = max(medDist_vec(:,1));
+minMedDist = min(medDist_vec(:,1));
+x_inter = medDist_select(end,1);
+y_inter = k_select(end,1);
+pt_inter = [x_inter, y_inter]; 
+
+[commonPairs, idxMed, idxK] = intersect(medDist_vec(:,2:3), kDist_vec(:,2:3), 'rows');
+x_vals = medDist_vec(idxMed, 1);
+y_vals = kDist_vec(idxK, 1);
+gauss_ids = commonPairs; 
+coeffGauss = medDist_vec(idxMed,2:3); 
+
+%% --- ORIGINAL BOUNDARY & DISTANCE CALCULATION (FOR TRIMMING) ---
+% 1. Original Boundaries (0% trim)
+slope_Q2 = (maxKv - y_inter) / (minMedDist - x_inter);
+slope_Q4 = (minKv - y_inter) / (maxMedDist - x_inter);
+int_Q2 = y_inter - slope_Q2 * x_inter;
+int_Q4 = y_inter - slope_Q4 * x_inter;
+
+% 2. Get line parameters for distance calculation (Handling vertical lines)
+m1 = slope_Q2; c1 = int_Q2;
+m2 = slope_Q4; c2 = int_Q4;
+if abs(minMedDist - x_inter) < 1e-9, m1 = realmax; c1 = 0; end
+if abs(maxMedDist - x_inter) < 1e-9, m2 = realmax; c2 = 0; end
+
+% 3. Calculate perpendicular distance of ALL points to the ORIGINAL boundary
+distQ2 = abs(m1 * x_vals - y_vals + c1) / sqrt(m1^2 + 1);
+distQ4 = abs(m2 * x_vals - y_vals + c2) / sqrt(m2^2 + 1);
+
+% 4. APPLY QUADRANT-SPECIFIC DISTANCE LOGIC FOR TRIMMING
+dist_to_boundary = zeros(size(x_vals));
+idx_right = x_vals > x_inter;
+
+% Q1 Points: min(distQ2, distQ4)
+idx_Q1 = idx_right & (y_vals > y_inter);
+dist_to_boundary(idx_Q1) = min(distQ2(idx_Q1), distQ4(idx_Q1));
+
+% Q4 Points: distQ4
+idx_Q4 = idx_right & (y_vals <= y_inter);
+dist_to_boundary(idx_Q4) = distQ4(idx_Q4); 
+
+% Q2/Q3 Points: distQ2
+idx_left = x_vals <= x_inter;
+dist_to_boundary(idx_left) = distQ2(idx_left);
+
+%% --- ORIGINAL SELECTION (0% trim) ---
+y_line_Q2 = slope_Q2*x_vals + int_Q2;
+y_line_Q4 = slope_Q4*x_vals + int_Q4;
+in_Q2 = (x_vals <= x_inter) & (x_vals >= minMedDist);
+in_Q4 = (x_vals >= x_inter) & (x_vals <= maxMedDist);
+
+% Use inclusive inequality (>=) for selection
+select_mask_orig = ((y_vals >= y_line_Q2) & in_Q2) | ((y_vals >= y_line_Q4) & in_Q4);
+select_gauss_orig = [x_vals(select_mask_orig), y_vals(select_mask_orig), gauss_ids(select_mask_orig,:)];
+
+select_all.original = struct('threshQ2',[slope_Q2,int_Q2],...
+                             'threshQ4',[slope_Q4,int_Q4],...
+                             'select_gauss',select_gauss_orig,...
+                             'removed_points',0,...
+                             'keep_mask', true(size(x_vals)));
+
+%% --- SEQUENTIAL TRIMMING AND RE-SELECTION ---
+trim_list = [1, 2.5, 5, 10];
+colors = {[0 0 1],[0.5 0 0.5],[0 1 1],[0 0.5 0]};
+field_names = {'trim1_0pct','trim2_5pct','trim5_0pct','trim10_0pct'};
+select_sets = cell(1,numel(trim_list));
+allSelectedGauss = [select_gauss_orig(:,3:4)]; 
+
+for ii = 1:numel(trim_list)
+    trimPct = trim_list(ii);
     
-    % Intersection (shared vertex)
-    x_inter = medDist_select(end,1);
-    y_inter = k_select(end,1);
+    % 1. Determine points to keep for boundary re-fitting
+    cutoff = prctile(dist_to_boundary, 100 - trimPct);
+    keep_mask = dist_to_boundary <= cutoff;
+    removed_mask = ~keep_mask;
+    x_keep = x_vals(keep_mask);
+    y_keep = y_vals(keep_mask);
+    
+    % 2. Refit thresholds 
+    slope_Q2r = (max(y_keep) - y_inter) / (min(x_keep) - x_inter);
+    slope_Q4r = (min(y_keep) - y_inter) / (max(x_keep) - x_inter);
+    int_Q2r = y_inter - slope_Q2r*x_inter;
+    int_Q4r = y_inter - slope_Q4r*x_inter;
+    
+    % 3. Re-select (using ALL points against the new boundaries, inclusive >=)
+    y_line_Q2r = slope_Q2r*x_vals + int_Q2r;
+    y_line_Q4r = slope_Q4r*x_vals + int_Q4r;
+    in_Q2r = (x_vals <= x_inter) & (x_vals >= minMedDist);
+    in_Q4r = (x_vals >= x_inter) & (x_vals <= maxMedDist);
+    select_mask_r = ((y_vals >= y_line_Q2r) & in_Q2r) | ((y_vals >= y_line_Q4r) & in_Q4r);
+    select_gauss_refined = [x_vals(select_mask_r), y_vals(select_mask_r), gauss_ids(select_mask_r,:)];
+    
+    select_all.(field_names{ii}) = struct('threshQ2',[slope_Q2r,int_Q2r],...
+                                          'threshQ4',[slope_Q4r,int_Q4r],...
+                                          'select_gauss',select_gauss_refined,...
+                                          'removed_points',sum(removed_mask),...
+                                          'keep_mask', keep_mask);
+    select_sets{ii} = select_gauss_refined;
+    allSelectedGauss = [allSelectedGauss; select_gauss_refined(:,3:4)];
+end
 
-    %% --- Q2 line (intercept → minMedDist, maxKv)
-    x1_Q2 = x_inter; y1_Q2 = y_inter;
-    x2_Q2 = minMedDist; y2_Q2 = maxKv;
-    slope_Q2 = (y2_Q2 - y1_Q2) / (x2_Q2 - x1_Q2);
-    intercept_Q2 = y1_Q2 - slope_Q2 * x1_Q2;
-    threshQ2 = [slope_Q2, intercept_Q2];
+% Assign individual outputs
+select_gauss_1pct   = select_sets{1};
+select_gauss_2_5pct = select_sets{2};
+select_gauss_5pct   = select_sets{3};
+select_gauss_10pct  = select_sets{4};
 
-    %% --- Q4 line (intercept → maxMedDist, minKv)
-    x1_Q4 = x_inter; y1_Q4 = y_inter;
-    x2_Q4 = maxMedDist; y2_Q4 = minKv;
-    slope_Q4 = (y2_Q4 - y1_Q4) / (x2_Q4 - x1_Q4);
-    intercept_Q4 = y1_Q4 - slope_Q4 * x1_Q4;
-    threshQ4 = [slope_Q4, intercept_Q4];
+%% --- OPTIONAL PLOTTING AND SAVING TWO FIGURES ---
+if plot_and_save
+    
+    if isnumeric(channelNum), channelNumStr = num2str(channelNum); else channelNumStr = channelNum; end
+    if ~exist(folderName,'dir'), mkdir(folderName); end
+    
+    x_left = linspace(minMedDist, x_inter, 300);
+    x_right = linspace(x_inter, maxMedDist, 300);
+    
+    % ---------------------------------------------------------------
+    % FIGURE 1: Boundary & Selection Plot (Detailed Labeling)
+    % ---------------------------------------------------------------
+    figure('Visible','on'); hold on; grid on; box on;
+    h_legend = [];
+    
+    % Plot ALL points (gray background)
+    h_all = scatter(x_vals, y_vals, 25, [0.7 0.7 0.7], 'filled', 'DisplayName', 'All Points'); 
+    h_legend(end+1) = h_all;
+    
+    % Add coeff# labels for all points
+    for i = 1:length(x_vals)
+        text(x_vals(i), y_vals(i)+0.7, num2str(coeffGauss(i,1)), ...
+            'HorizontalAlignment','center', 'FontSize',7, 'FontWeight','bold', 'Color','k');
+    end
+    
+    % Plot Intersection point (Yellow circle)
+    h_inter = plot(x_inter, y_inter, 'ko', 'MarkerFaceColor','y', 'MarkerSize',8, 'DisplayName','Intersection');
+    h_legend(end+1) = h_inter;
 
-    %% --- Match medDist and kDist by [coeff#, gauss#]
-    [commonPairs, idxMed, idxK] = intersect(medDist_vec(:,2:3), kDist_vec(:,2:3), 'rows');
+    % Plot Trimmed Boundaries (1%, 2.5%, 5%, 10%)
+    boundaryDisplayNames = {'1%','2.5%','5%','10%'};
+    boundaryColors = {[0 0 1],[0.5 0 0.5],[0 1 1],[0 0.5 0]};
+    
+    for ii = 1:numel(trim_list)
+        trim_struct = select_all.(field_names{ii});
+        sQ2=trim_struct.threshQ2(1); iQ2=trim_struct.threshQ2(2);
+        sQ4=trim_struct.threshQ4(1); iQ4=trim_struct.threshQ4(2);
+        color = colors{ii};
 
-    % Extract matched values
-    x_vals = medDist_vec(idxMed, 1);
-    y_vals = kDist_vec(idxK, 1);
+        % Plot boundary lines
+        h = plot(x_left, sQ2*x_left+iQ2, '-', 'Color', color, 'LineWidth',1.5);
+        plot(x_right, sQ4*x_right+iQ4, '-', 'Color', color, 'LineWidth',1.5, 'HandleVisibility','off');
+        h.DisplayName = sprintf('Boundary %s', boundaryDisplayNames{ii});
+        h_legend(end+1) = h;
+        
+        % Plot selected points for this boundary
+        selected_pts = trim_struct.select_gauss;
+        scatter(selected_pts(:,1), selected_pts(:,2), 50, color, 'filled', 'HandleVisibility','off');
+    end
 
-    %% --- Compute line y-values
-    y_line_Q2 = slope_Q2 * x_vals + intercept_Q2;
-    y_line_Q4 = slope_Q4 * x_vals + intercept_Q4;
+    % Plot Original Boundary (0%) and selected points (Black)
+    sQ2_orig=select_all.original.threshQ2(1); iQ2_orig=select_all.original.threshQ2(2);
+    sQ4_orig=select_all.original.threshQ4(1); iQ4_orig=select_all.original.threshQ4(2);
+    h_orig_q2 = plot(x_left, sQ2_orig*x_left+iQ2_orig, '-', 'Color', [0 0 0], 'LineWidth',1.5, 'DisplayName', 'Original Boundary');
+    plot(x_right, sQ4_orig*x_right+iQ4_orig, '-', 'Color', [0 0 0], 'LineWidth',1.5, 'HandleVisibility','off');
+    h_legend(end+1) = h_orig_q2;
+    selected_orig_pts = select_all.original.select_gauss;
+    scatter(selected_orig_pts(:,1), selected_orig_pts(:,2), 50, [0 0 0], 'filled', 'HandleVisibility','off');
+    
+    
+    % Plot remaining points (Same Coeff/Unrelated)
+    allSelectedGauss = unique(allSelectedGauss, 'rows');
+    plotted_mask = ismember(coeffGauss, allSelectedGauss, 'rows');
+    h_same = []; h_unrelated = [];
+    
+    for k = 1:length(x_vals)
+        if plotted_mask(k), continue; end
+        coeff_num = coeffGauss(k,1);
+        if ismember(coeff_num, allSelectedGauss(:,1))
+            h_same = scatter(x_vals(k), y_vals(k), 35, [0.5 0.5 1], 'filled');
+        else
+            h_unrelated = scatter(x_vals(k), y_vals(k), 35, [1 0 0], 'x', 'LineWidth',1.5);
+        end
+    end
+    
+    % Final Legend Cleanup
+    if exist('h_same', 'var') && ~isempty(h_same), h_same.DisplayName = 'Same coeff'; h_legend(end+1) = h_same(1); end
+    if exist('h_unrelated', 'var') && ~isempty(h_unrelated), h_unrelated.DisplayName = 'Unrelated'; h_legend(end+1) = h_unrelated(1); end
+    
+    legend(h_legend,'Location','bestoutside');
+    xlabel('Median Distance');
+    ylabel('K-value');
+    title('Median Distance vs K-value with Sequential Boundaries');
+    
+    % Save figure 1
+    filename1 = fullfile(folderName, sprintf('ch%s_medD_v_kv_boundaries.png', channelNumStr));
+    exportgraphics(gcf, filename1, 'Resolution',300);
+    close(gcf); % Close the current figure
 
-    %% --- Quadrant restriction
-    in_Q2 = (x_vals <= x_inter) & (x_vals >= minMedDist);
-    in_Q4 = (x_vals >= x_inter) & (x_vals <= maxMedDist);
+    % ---------------------------------------------------------------
+    % FIGURE 2: Removal Plot (Shows points removed for trimming)
+    % ---------------------------------------------------------------
+    figure('Visible','on'); hold on; grid on; box on;
 
-    %% --- Selection logic (above/right of line within quadrant)
-    select_Q2 = (y_vals > y_line_Q2) & in_Q2;
-    select_Q4 = (y_vals > y_line_Q4) & in_Q4;
+    % Use the 10% mask to define removed points
+    removed_10pct_mask = ~select_all.trim10_0pct.keep_mask;
+    
+    % Plot all points that were kept (gray)
+    h_kept = scatter(x_vals(~removed_10pct_mask), y_vals(~removed_10pct_mask), 18, [0.7 0.7 0.7], 'filled', 'DisplayName','Kept Points (10% Trim)');
+    
+    % Plot removed points (red 'x')
+    h_removed = scatter(x_vals(removed_10pct_mask), y_vals(removed_10pct_mask), 30, [1 0 0], 'x', 'LineWidth', 1.5, 'DisplayName','Removed Points (10% Trim)');
 
-    select_mask = select_Q2 | select_Q4;
+    % Plot Boundaries (Original and Final 10% trim)
+    plot(x_left, sQ2_orig*x_left+iQ2_orig, 'k--', 'LineWidth',1.4, 'DisplayName','Original Boundary');
+    plot(x_right, sQ4_orig*x_right+iQ4_orig, 'k--', 'LineWidth',1.4, 'HandleVisibility','off');
 
-    %% --- Build full select_gauss table: [medDist, k_value, coeff#, gauss#]
-    select_gauss = [x_vals(select_mask), y_vals(select_mask), commonPairs(select_mask,:)];
+    sQ2_10=select_all.trim10_0pct.threshQ2(1); iQ2_10=select_all.trim10_0pct.threshQ2(2);
+    sQ4_10=select_all.trim10_0pct.threshQ4(1); iQ4_10=select_all.trim10_0pct.threshQ4(2);
+    plot(x_left, sQ2_10*x_left+iQ2_10, 'g-', 'LineWidth',1.5, 'DisplayName','10% Trimmed Boundary');
+    plot(x_right, sQ4_10*x_right+iQ4_10, 'g-', 'LineWidth',1.5, 'HandleVisibility','off');
 
-    % %% --- Plotting
-    % figure; hold on; grid on; box on;
-    % 
-    % % Plot all matched points (gray)
-    % scatter(x_vals, y_vals, 25, [0.6 0.6 0.6], 'filled');
-    % 
-    % % Highlight selected points (green)
-    % scatter(x_vals(select_mask), y_vals(select_mask), 35, 'g', 'filled');
-    % 
-    % % Intersection
-    % plot(x_inter, y_inter, 'ro', 'MarkerSize', 8, 'LineWidth', 1.5);
-    % 
-    % % Threshold lines (dashed black)
-    % plot([x1_Q2, x2_Q2], [y1_Q2, y2_Q2], 'k--', 'LineWidth', 1.2);
-    % plot([x1_Q4, x2_Q4], [y1_Q4, y2_Q4], 'k--', 'LineWidth', 1.2);
-    % 
-    % xlabel('Median Distance');
-    % ylabel('k Distance');
-    % title('Quadrant Threshold Lines and Selected Gaussians');
-    % legend({'Matched points', 'Selected', 'Intersection', 'Threshold lines'}, 'Location', 'best');
-    % hold off;
+    plot(x_inter, y_inter, 'ko', 'MarkerFaceColor','y', 'MarkerSize',8, 'DisplayName','Intersection','HandleVisibility','off');
+
+    xlabel('Median Distance');
+    ylabel('K-value');
+    title(sprintf('Points Removed by 10%% Distance Cutoff (Channel %s)', channelNumStr));
+    legend([h_kept, h_removed],'Location','bestoutside');
+
+    % Save figure 2
+    filename2 = fullfile(folderName, sprintf('ch%s_lineExclusion_removed_points.png', channelNumStr));
+    exportgraphics(gcf, filename2, 'Resolution',300);
+    close(gcf);
+end
+
+%% --- Print summary
+fprintf('\n=== LineExclusion Summary ===\n');
+fprintf('Original: %d selected\n', size(select_gauss_orig,1));
+fprintf('Trim 1%%: %d selected, %d removed\n', size(select_gauss_1pct,1), select_all.trim1_0pct.removed_points);
+fprintf('Trim 2.5%%: %d selected, %d removed\n', size(select_gauss_2_5pct,1), select_all.trim2_5pct.removed_points);
+fprintf('Trim 5%%: %d selected, %d removed\n', size(select_gauss_5pct,1), select_all.trim5_0pct.removed_points);
+fprintf('Trim 10%%: %d selected, %d removed\n', size(select_gauss_10pct,1), select_all.trim10_0pct.removed_points);
+fprintf('=============================\n\n');
 end

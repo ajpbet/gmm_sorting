@@ -56,13 +56,13 @@ function M = GMM_basic1D(x,par)
     % One 1-D feature vector x (n x 1) -> metrics + peak/inflection locations
     x = x(:);
 
-    opts  = statset('MaxIter',2000,'TolFun',1e-6,'Display','off');
+    opts  = statset('MaxIter',3000,'TolFun',1e-5,'Display','off');
     K     = 8;
     Mgrid = 100;                 % 100 for paper try 256 if missing def.
 
-    g = fitgmdist(x, K, 'Replicates', 8, ...
+    g = fitgmdist(x, K, 'Replicates', 5, ...
         'CovarianceType','diagonal', ...
-        'RegularizationValue', 1e-6, ...    
+        'RegularizationValue', 1e-5, ...    
         'Start','plus', 'Options', opts);
 
     % Grid + pdf

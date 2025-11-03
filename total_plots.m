@@ -366,6 +366,10 @@ function total_plots(pg,xg,wd_coeff,g,ks_out_full,ks_out,summary_table,spikes,al
     [threshQ2noPk,threshQ4noPk,select_gaussnoPk] = lineExclusion(medD_vec_noPk,medD_sel_noPk, ...
         k_sel_NoPk,kDist_vec_NoPk);
 
+    % adding 1% and 2.5% outlier filtering to boundary
+
+    
+
 %% plot all meddist vs k excl. Mcomp
 % non peaks excluded
     plotMedDistVsKv(medD_vec_noPk,kDist_vec_NoPk, medD_sel_noPk, ...
