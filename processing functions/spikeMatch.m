@@ -41,11 +41,27 @@ function select_spike_match = spikeMatch(select_all, g, coeffs)
             else
                 inter = numel(intersect(Ai, Aj));
                 union_sz = numel(union(Ai, Aj));
-                overlapMat(i,j) = inter / union_sz;  % Jaccard similarity
+                szAi = numel(Ai);
+                szAj = numel(Aj);
+
+                minSz = min(szAj,szAi);
+                overlapMat(i,j) = inter / minSz;  % Jaccard similarity
             end
             overlapMat(j,i) = overlapMat(i,j);
         end
     end
+    
+    % visualize the overlap
+    % colorbap plot of pariwise matrix of overlapMat
+    % Visualize the overlap matrix using a heatmap
+    figure;
+    heatmap(overlapMat, 'ColorLimits', [0, 1], 'Title', 'Pairwise Spike Overlap', ...
+             'XLabel', 'Spike Index', 'YLabel', 'Spike Index');
+    % max and min distances to each boundary for each Ai v Aj for all pairs
+
+    % compare max and min num of spikes for each pair
+
+    
 
     % --- Step 3: find groups of highly similar coefficients ---
     threshold = 0.8;  % adjust as needed
