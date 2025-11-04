@@ -1,4 +1,4 @@
-function [select_all, ks_coeff] = GMM_extract(spikes, cluster_class, par, filename_mat,basename)
+function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, cluster_class, par, filename_mat,basename)
     % If GMM .mat file doesn't exist, generate and save it
     if ~exist(filename_mat, 'file')
         [inspk, ks_coeff, ks_out, ks_out_full, all_ks] = wave_features(spikes, par);
@@ -212,6 +212,7 @@ function [select_all, ks_coeff] = GMM_extract(spikes, cluster_class, par, filena
         lineExclusion(medDist_vec,medDist_select, ...
         k_select,kDist_vec,folderPlots, basename);
     
+    select_spike_match = spikeMatch(select_gauss,g_init, coeffs);
     % plotMedDistVsKv_selectAll(medDist_vec, kDist_vec, medDist_select, ...
     %     k_select, folderPlots, basename);
 

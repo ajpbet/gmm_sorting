@@ -57,7 +57,7 @@ function M = GMM_basic1D(x,par)
     x = x(:);
 
     opts  = statset('MaxIter',3000,'TolFun',1e-5,'Display','off');
-    K     = 8;
+    K     = 16;
     Mgrid = 100;                 % 100 for paper try 256 if missing def.
 
     g = fitgmdist(x, K, 'Replicates', 5, ...

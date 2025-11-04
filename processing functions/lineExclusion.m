@@ -151,29 +151,57 @@ if plot_and_save
     % Plot Trimmed Boundaries (1%, 2.5%, 5%, 10%)
     boundaryDisplayNames = {'1%','2.5%','5%','10%'};
     boundaryColors = {[0 0 1],[0.5 0 0.5],[0 1 1],[0 0.5 0]};
-    
+
     for ii = 1:numel(trim_list)
         trim_struct = select_all.(field_names{ii});
-        sQ2=trim_struct.threshQ2(1); iQ2=trim_struct.threshQ2(2);
-        sQ4=trim_struct.threshQ4(1); iQ4=trim_struct.threshQ4(2);
+        sQ2 = trim_struct.threshQ2(1); iQ2 = trim_struct.threshQ2(2);
+        sQ4 = trim_struct.threshQ4(1); iQ4 = trim_struct.threshQ4(2);
         color = colors{ii};
-
-        % Plot boundary lines
-        h = plot(x_left, sQ2*x_left+iQ2, '-', 'Color', color, 'LineWidth',1.5);
-        plot(x_right, sQ4*x_right+iQ4, '-', 'Color', color, 'LineWidth',1.5, 'HandleVisibility','off');
-        h.DisplayName = sprintf('Boundary %s', boundaryDisplayNames{ii});
-        h_legend(end+1) = h;
+    
+        % Use the points that were actually used to calculate this boundary
+        x_keep = x_vals(trim_struct.keep_mask);
+        y_keep = y_vals(trim_struct.keep_mask);
+    
+        % Compute intersection for this trimmed boundary
+        x_inter_trim = x_keep(end);  % or wherever your intersection logic sets it
+        y_inter_trim = y_keep(end);
+    
+        % Q2 boundary segment (left of intercept)
+        xQ2_pts = x_keep(x_keep <= x_inter_trim);  % points used to fit Q2
+        if ~isempty(xQ2_pts)
+            x_start = min(xQ2_pts);      % leftmost boundary point
+            x_end   = x_inter_trim;      % intersection
+            y_start = slope_Q2r*x_start + int_Q2r;
+            y_end   = slope_Q2r*x_end   + int_Q2r;
+            plot([x_start, x_end], [y_start, y_end], '-', 'Color', color, 'LineWidth',1.5);
+        end
         
-        % Plot selected points for this boundary
-        selected_pts = trim_struct.select_gauss;
-        scatter(selected_pts(:,1), selected_pts(:,2), 50, color, 'filled', 'HandleVisibility','off');
+        % Q4 boundary segment (right of intercept)
+        xQ4_pts = x_keep(x_keep >= x_inter_trim);  % points used to fit Q4
+        if ~isempty(xQ4_pts)
+            x_start = x_inter_trim;       % intersection
+            x_end   = max(xQ4_pts);       % rightmost boundary point
+            y_start = slope_Q4r*x_start + int_Q4r;
+            y_end   = slope_Q4r*x_end   + int_Q4r;
+            plot([x_start, x_end], [y_start, y_end], '-', 'Color', color, 'LineWidth',1.5);
+        end
+
+    
+        scatter(trim_struct.select_gauss(:,1), trim_struct.select_gauss(:,2), 50, color, 'filled', 'HandleVisibility','off');
     end
+
+
 
     % Plot Original Boundary (0%) and selected points (Black)
     sQ2_orig=select_all.original.threshQ2(1); iQ2_orig=select_all.original.threshQ2(2);
     sQ4_orig=select_all.original.threshQ4(1); iQ4_orig=select_all.original.threshQ4(2);
-    h_orig_q2 = plot(x_left, sQ2_orig*x_left+iQ2_orig, '-', 'Color', [0 0 0], 'LineWidth',1.5, 'DisplayName', 'Original Boundary');
-    plot(x_right, sQ4_orig*x_right+iQ4_orig, '-', 'Color', [0 0 0], 'LineWidth',1.5, 'HandleVisibility','off');
+    
+    xQ2_orig = linspace(min(x_vals), x_inter, 300);
+    xQ4_orig = linspace(x_inter, max(x_vals), 300);
+    
+    h_orig_q2 = plot(xQ2_orig, sQ2_orig*xQ2_orig+iQ2_orig, '-', 'Color', [0 0 0], 'LineWidth',1.5, 'DisplayName', 'Original Boundary');
+    plot(xQ4_orig, sQ4_orig*xQ4_orig+iQ4_orig, '-', 'Color', [0 0 0], 'LineWidth',1.5, 'HandleVisibility','off');
+
     h_legend(end+1) = h_orig_q2;
     selected_orig_pts = select_all.original.select_gauss;
     scatter(selected_orig_pts(:,1), selected_orig_pts(:,2), 50, [0 0 0], 'filled', 'HandleVisibility','off');
@@ -199,6 +227,16 @@ if plot_and_save
     if exist('h_unrelated', 'var') && ~isempty(h_unrelated), h_unrelated.DisplayName = 'Unrelated'; h_legend(end+1) = h_unrelated(1); end
     
     legend(h_legend,'Location','bestoutside');
+    % --- Add text under legend showing summary counts ---
+    all_selected = select_all.original.select_gauss;
+    num_gauss = size(all_selected, 1);
+    num_unique_coeff = numel(unique(all_selected(:,3)));
+    
+    % Create annotation textbox below `
+    txt_summary = sprintf('Selected Gaussians: %d\nUnique Coefficients: %d', num_gauss, num_unique_coeff);
+    annotation('textbox',[0.83, 0.15, 0.15, 0.07], 'String',txt_summary, ...
+    'FitBoxToText','on', 'EdgeColor','none', 'FontSize',9, 'VerticalAlignment','top');
+
     xlabel('Median Distance');
     ylabel('K-value');
     title('Median Distance vs K-value with Sequential Boundaries');
@@ -245,11 +283,11 @@ if plot_and_save
 end
 
 %% --- Print summary
-fprintf('\n=== LineExclusion Summary ===\n');
-fprintf('Original: %d selected\n', size(select_gauss_orig,1));
-fprintf('Trim 1%%: %d selected, %d removed\n', size(select_gauss_1pct,1), select_all.trim1_0pct.removed_points);
-fprintf('Trim 2.5%%: %d selected, %d removed\n', size(select_gauss_2_5pct,1), select_all.trim2_5pct.removed_points);
-fprintf('Trim 5%%: %d selected, %d removed\n', size(select_gauss_5pct,1), select_all.trim5_0pct.removed_points);
-fprintf('Trim 10%%: %d selected, %d removed\n', size(select_gauss_10pct,1), select_all.trim10_0pct.removed_points);
-fprintf('=============================\n\n');
+    fprintf('\n=== LineExclusion Summary ===\n');
+    fprintf('Original: %d selected\n', size(select_gauss_orig,1));
+    fprintf('Trim 1%%: %d selected, %d removed\n', size(select_gauss_1pct,1), select_all.trim1_0pct.removed_points);
+    fprintf('Trim 2.5%%: %d selected, %d removed\n', size(select_gauss_2_5pct,1), select_all.trim2_5pct.removed_points);
+    fprintf('Trim 5%%: %d selected, %d removed\n', size(select_gauss_5pct,1), select_all.trim5_0pct.removed_points);
+    fprintf('Trim 10%%: %d selected, %d removed\n', size(select_gauss_10pct,1), select_all.trim10_0pct.removed_points);
+    fprintf('=============================\n\n');
 end
