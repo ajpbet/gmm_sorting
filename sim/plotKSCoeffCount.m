@@ -16,7 +16,7 @@ sel_counts = cellfun(@(x) numel(unique(x)), select_all);  % unique counts
 yMax = ceil(max([ks_counts; sel_counts]) * 1.2);          % take max, scale 20%
 
 
-% --- Background shading for alternating units ---
+% Background shading for alternating units
 for i = 1:numUnits
     unit = unitNumbers(i);
     if mod(unit,2) == 0
@@ -27,7 +27,7 @@ for i = 1:numUnits
 end
 
 
-% --- Plot points with jitter ---
+% Plot points with jitte
 hKS = [];
 hSel = [];
 jitterAmp = 0.5;  % +/- 0.1
@@ -51,7 +51,7 @@ for i = 1:numUnits
     end
 end
 
-% --- Formatting ---
+% Formatting 
 xlabel('Unit Number');
 ylabel('Number of Coefficients');
 title(plotTitle);
@@ -70,7 +70,7 @@ switch graphNum
     case 3, suffix = '_2p5pct';
     case 4, suffix = '_5pct';
     case 5, suffix = '_10pct';
-    otherwise, suffix = '';
+    otherwise, suffix = 'spikeMatch';
 end
 
 saveas(gcf, fullfile(folderSave, ['CoeffCount' suffix '.png']));

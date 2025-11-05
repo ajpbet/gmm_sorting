@@ -3,12 +3,11 @@ function [select_gauss_orig, select_gauss_1pct, select_gauss_2_5pct, select_gaus
 % Builds Q2/Q4 threshold lines, iteratively trims based on distance to center point (intersection),
 % and returns selected Gaussians while optionally saving two figures.
 
-% --- Default/Optional Input Handling ---
 if nargin < 5, folderName = ''; end 
 if nargin < 6, channelNum = ''; end 
 plot_and_save = ~isempty(folderName) && ~isempty(channelNum); 
 
-%% --- INITIALIZATION & DATA MATCHING ---
+%% initialization
 maxKv = max(kDist_vec(:,1));
 minKv = min(kDist_vec(:,1));
 maxMedDist = max(medDist_vec(:,1));
@@ -21,7 +20,7 @@ y_vals = kDist_vec(idxK, 1);
 gauss_ids = commonPairs; 
 coeffGauss = medDist_vec(idxMed,2:3); 
 
-%% --- NORMALIZATION SETUP (Required for Center Distance Trimming) ---
+%% normalization 
 x_min = min(x_vals);
 x_max = max(x_vals);
 y_min = min(y_vals);
@@ -40,7 +39,7 @@ y_inter_norm = (y_inter - y_min) / y_range;
 % Euclidean distance in the normalized [0, 1] space.
 dist_to_center_norm = sqrt((x_vals_norm - x_inter_norm).^2 + (y_vals_norm - y_inter_norm).^2);
 
-%% --- ORIGINAL BOUNDARY & SELECTION (0% trim) ---
+%% original boundary
 % Original Boundaries (0% trim) - UN-NORMALIZED (Needed for the line itself)
 slope_Q2 = (maxKv - y_inter) / (minMedDist - x_inter);
 slope_Q4 = (minKv - y_inter) / (maxMedDist - x_inter);
@@ -60,7 +59,7 @@ select_all.original = struct('threshQ2',[slope_Q2,int_Q2],...
                              'removed_points',0,...
                              'keep_mask', true(size(x_vals)));
                              
-%% --- SEQUENTIAL TRIMMING AND RE-SELECTION ---
+%% trimming by percentage for dist removal
 trim_list = [1, 2.5, 5, 10];
 colors = {[0 0 1],[0.5 0 0.5],[0 1 1],[0 0.5 0]}; % Kept your colors
 field_names = {'trim1_0pct','trim2_5pct','trim5_0pct','trim10_0pct'};
@@ -70,22 +69,18 @@ allSelectedGauss = [select_gauss_orig(:,3:4)];
 for ii = 1:numel(trim_list)
     trimPct = trim_list(ii);
     
-    % 1. APPLY TRIMMING (Global Cutoff on Normalized Center Distances)
     % Remove points with the largest distance to the center.
     cutoff_norm = prctile(dist_to_center_norm, 100 - trimPct);
     keep_mask = dist_to_center_norm <= cutoff_norm;
     
-    % --- REMOVED POINTS CALCULATION ---
     num_total_points = length(x_vals);
     num_kept = sum(keep_mask);
     num_removed = num_total_points - num_kept;
     % ---------------------------------
 
-    % 2. SELECT POINTS FROM ORIGINAL DATA (De-normalization step)
     x_keep = x_vals(keep_mask); 
     y_keep = y_vals(keep_mask);
     
-    % 3. Refit thresholds 
     % Handle edge case where trimming fails
     if isempty(x_keep) || isempty(y_keep) || (min(x_keep) == x_inter) || (max(x_keep) == x_inter)
         if ii == 1
@@ -103,7 +98,6 @@ for ii = 1:numel(trim_list)
         int_Q4r = y_inter - slope_Q4r*x_inter;
     end
     
-    % 4. Re-select (using ALL points against the new boundaries)
     y_line_Q2r = slope_Q2r*x_vals + int_Q2r;
     y_line_Q4r = slope_Q4r*x_vals + int_Q4r;
     in_Q2r = (x_vals <= x_inter) & (x_vals >= minMedDist); 
@@ -125,17 +119,13 @@ select_gauss_2_5pct = select_sets{2};
 select_gauss_5pct   = select_sets{3};
 select_gauss_10pct  = select_sets{4};
 
-%% --- OPTIONAL PLOTTING AND SAVING TWO FIGURES ---
-% (Plotting logic remains identical to the previous version)
-
+%% optional plots
 if plot_and_save
     
     if isnumeric(channelNum), channelNumStr = num2str(channelNum); else channelNumStr = channelNum; end
     if ~exist(folderName,'dir'), mkdir(folderName); end
     
-    % ---------------------------------------------------------------
-    % FIGURE 1: Boundary & Selection Plot (Detailed Labeling)
-    % ---------------------------------------------------------------
+    % FIG1: Boundary & Selection Plot (Detailed Labeling)
     figure('Visible','on'); hold on; grid on; box on;
     h_legend = []; % Initialize legend handle array
     
@@ -149,11 +139,9 @@ if plot_and_save
             'HorizontalAlignment','center', 'FontSize',7, 'FontWeight','bold', 'Color','k');
     end
     
-    % Plot Intersection point (Yellow circle)
     h_inter = plot(x_inter, y_inter, 'ko', 'MarkerFaceColor','y', 'MarkerSize',8, 'DisplayName','Intersection');
-    h_legend(end+1) = h_inter; % Add to legend
+    h_legend(end+1) = h_inter; 
     
-    % Plot Boundaries and their respective SELECTED points in REVERSE order
     % This ensures the most restrictive selections are drawn last and are visible.
     trim_list_rev = fliplr(trim_list); % [10, 5, 2.5, 1]
     field_names_rev = fliplr(field_names); % corresponding field names
@@ -260,11 +248,11 @@ if plot_and_save
     
     % Save figure 1
     filename1 = fullfile(folderName, sprintf('ch%s_medD_v_kv_boundaries.png', channelNumStr));
-    exportgraphics(gcf, filename1, 'Resolution',300);
+   % exportgraphics(gcf, filename1, 'Resolution',300);
     close(gcf); % Close the current figure
-    % ---------------------------------------------------------------
-    % FIGURE 2: Removal Plot (Shows points removed for trimming)
-    % ---------------------------------------------------------------
+
+    % FIG 2: Removal Plot (Shows points removed for trimming)
+
     figure('Visible','on'); hold on; grid on; box on;
     % Use the 10% mask to define removed points
     trim_struct_10 = select_all.trim10_0pct;
@@ -296,18 +284,15 @@ if plot_and_save
     end
     plot(x_inter, y_inter, 'ko', 'MarkerFaceColor','y', 'MarkerSize',8, 'DisplayName','Intersection','HandleVisibility','off');
     
-    % --- NEW FOR CENTER DISTANCE TRIM: Plot a circle corresponding to the cutoff ---
     
     % Get the 10% cutoff distance (in normalized units)
     cutoff_10pct_norm = prctile(dist_to_center_norm, 90); 
     
     % To plot the circle in UN-NORMALIZED coordinates:
-    % 1. Create a circle in normalized space around the center (x_inter_norm, y_inter_norm) with radius cutoff_10pct_norm
     theta = linspace(0, 2*pi, 100);
     x_circle_norm = x_inter_norm + cutoff_10pct_norm * cos(theta);
     y_circle_norm = y_inter_norm + cutoff_10pct_norm * sin(theta);
     
-    % 2. De-normalize the circle points back to original units
     x_circle = x_circle_norm * x_range + x_min;
     y_circle = y_circle_norm * y_range + y_min;
     
@@ -321,10 +306,10 @@ if plot_and_save
     
     % Save figure 2
     filename2 = fullfile(folderName, sprintf('ch%s_lineExclusion_removed_points.png', channelNumStr));
-    exportgraphics(gcf, filename2, 'Resolution',300);
+    %exportgraphics(gcf, filename2, 'Resolution',300);
     close(gcf);
 end
-%% --- Print summary
+%% summary
     fprintf('\n=== LineExclusion Summary ===\n');
     fprintf('Original: %d selected\n', size(select_gauss_orig,1));
     fprintf('Trim 1%%: %d selected, %d removed\n', size(select_gauss_1pct,1), select_all.trim1_0pct.removed_points);

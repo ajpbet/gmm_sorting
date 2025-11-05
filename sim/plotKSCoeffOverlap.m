@@ -1,12 +1,12 @@
 function plotKSCoeffOverlap(ks_coeff_all, select_all, unitNumbers, plotTitle, graphNum)
-% PLOTKSCOEFFOVERLAP plots percent overlap between ks_coeff and select_all gaussians
+% plots percent overlap between ks_coeff and select_all gaussians
 % and saves the figure with a unique identifier based on percentage.
 
 figure; hold on;
 
 numUnits = numel(unitNumbers);
 
-% --- Background shading for alternating units ---
+% Background shading for alternating units 
 for i = 1:numUnits
     unit = unitNumbers(i);
     if mod(unit,2) == 0 % shade even units
@@ -16,7 +16,7 @@ for i = 1:numUnits
     end
 end
 
-% --- Plot points with small random jitter ---
+% Plot points with small random jitter 
 for i = 1:numUnits
     ks = ks_coeff_all{i};
     selCell = unique(select_all{i});
@@ -51,17 +51,17 @@ title(plotTitle);
 grid on;
 box on;
 
-% --- Determine suffix based on graphNum ---
+% Determine suffix based on graphNum
 switch graphNum
     case 1, suffix = '_0pct';
     case 2, suffix = '_1pct';
     case 3, suffix = '_2p5pct';
     case 4, suffix = '_5pct';
     case 5, suffix = '_10pct';
-    otherwise, suffix = sprintf('_graph%d', graphNum);
+    otherwise, suffix = '_spikeMatch';
 end
 
-% --- Save figure ---
+% Save figure
 saveFolder = fullfile('results', 'matches');
 if ~exist(saveFolder,'dir'), mkdir(saveFolder); end
 

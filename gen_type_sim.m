@@ -23,7 +23,7 @@ function gen_type_sim
     spike_segment = segMentFile(spikes_files_idx,:);
 
     for i = 1:length(filesTimes)
-        fullTimes = fullfile(path, filesTimes{i});  % ✅ use {}
+        fullTimes = fullfile(path, filesTimes{i});  
         
         % find equivalent spike (matching test and channel)
         match_idx = ismember(spike_segment(:,2:3), segMent_times(i,2:3), 'rows');
@@ -32,7 +32,7 @@ function gen_type_sim
             continue;
         end
         
-        spike_full = fullfile(path, filesSpikes{find(match_idx, 1)});  % ✅ use {}
+        spike_full = fullfile(path, filesSpikes{find(match_idx, 1)}); 
     
         % Load data
         times = load(fullTimes);

@@ -14,6 +14,7 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, cluster
     %
     folderName = 'results';
     folderPlots = fullfile(folderName, 'plots');
+    folderSpikeMatch = fullfile(folderName,'spikeMatch');
 
     if ~exist(folderName, 'dir')
         mkdir(folderName);
@@ -21,6 +22,9 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, cluster
     if ~exist(folderPlots, 'dir')
         mkdir(folderPlots);
     end
+    if ~exist(folderSpikeMatch, 'dir')
+        mkdir(folderSpikeMatch);
+    end    
 
         %% filter GMM results by weight (K, M_comp, medDist, polyID_M)
     g_init = cell(1,length(g));
@@ -212,7 +216,9 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, cluster
         lineExclusion(medDist_vec,medDist_select, ...
         k_select,kDist_vec,folderPlots, basename);
     
-    select_spike_match = spikeMatch(select_gauss,g_init, coeffs);
+    threshQ2 = select_all.original.threshQ2;
+    threshQ4 = select_all.original.threshQ4;
+    select_spike_match = spikeMatch(select_gauss,threshQ2,threshQ4,g_init, coeffs,folderSpikeMatch,basename);
     % plotMedDistVsKv_selectAll(medDist_vec, kDist_vec, medDist_select, ...
     %     k_select, folderPlots, basename);
 

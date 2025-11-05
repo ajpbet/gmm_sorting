@@ -42,7 +42,6 @@ function [medDist_select,medDist_lSel,medDist_vec] = processMedDistKnee(medDist_
     sorted_idx  = medVector_sortCoeff;
     sorted_gauss = medVector_sortGauss;
 
-    % --- Keep only top max candidates for knee detection ---
     minVal = 1;
     maxVal = length(medVector_sort);
     top_candidates = sorted_vals(end-maxVal+1:end);
@@ -51,7 +50,6 @@ function [medDist_select,medDist_lSel,medDist_vec] = processMedDistKnee(medDist_
     ncoeff = length(sorted_vals);
     maxA = max(sorted_vals);
     
-    % --- Sliding-window slope computation ---
     nd = 10;
     if ncoeff >= nd
         d_vals = (top_candidates(nd:end) - top_candidates(1:end-nd+1)) ...
@@ -61,7 +59,6 @@ function [medDist_select,medDist_lSel,medDist_vec] = processMedDistKnee(medDist_
         all_above1 = [];
     end
     
-    % --- Knee detection ---
     if numel(all_above1) >= 2
         aux2 = diff(all_above1);
         temp_bla = conv(aux2(:), [1 1 1]/3); % smooth differences
@@ -79,7 +76,6 @@ function [medDist_select,medDist_lSel,medDist_vec] = processMedDistKnee(medDist_
         inputs = minVal;
     end
     
-    % --- Select top coefficients ---
     len_medSelect = length(top_indices(end:-1:end-inputs+1));
     medDist_select = zeros(len_medSelect, 3);
 

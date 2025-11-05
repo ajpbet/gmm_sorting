@@ -16,7 +16,6 @@ function sim_run
     if ~exist(folderGMM, 'dir'), mkdir(folderGMM); end
     if ~exist(folderCoeff, 'dir'), mkdir(folderCoeff); end
 
-    % === Summary structure (NEW) ===
     coeffSummary = struct('file', [], 'select_all', [], 'ks_coeff', [], ...
         'select_spike_match', []);
 
@@ -33,21 +32,16 @@ function sim_run
         % Base name
         [~, baseName, ~] = fileparts(fullPaths{i});
 
-        % --- GMM File Path ---
         gmmFileName = fullfile(folderGMM, ['gmm_' baseName '.mat']);
 
-        % --- Run GMM Extract ---
         [select_all, ks_coeff,select_spike_match] = ...
             GMM_extract(spikes, cluster_class, par, gmmFileName,baseName);
 
-        % --- Coeff File Path ---
         coeffFileName = fullfile(folderCoeff, ['coeff_' baseName '.mat']);
         save(coeffFileName, 'select_all', 'ks_coeff','select_spike_match');
 
-        % --- Add to Summary (NEW) ---
         coeffSummary(i).file = baseName;
         coeffSummary(i).select_all = select_all;
-      %  coeffSummary(i).select_allNoPk = select_allNoPk;
         coeffSummary(i).ks_coeff = ks_coeff;
         coeffSummary(i).select_spike_match = select_spike_match;
 
@@ -96,7 +90,7 @@ function sim_run
     plotKSCoeffOverlap(ks_coeff_all, select_gauss2_5pct, num_units, 'overlap ks v. gmm 2.5% cutoff',3);
     plotKSCoeffOverlap(ks_coeff_all, select_gauss5pct, num_units, 'overlap ks v. gmm 5% cutoff',4);
     plotKSCoeffOverlap(ks_coeff_all, select_gauss10pct, num_units, 'overlap ks v. gmm 10% cutoff',5);
-    plotKSCoeffOverlap(ks_coeff_all, select_spikeMch, num_units, 'overlap ks v. spike match 0%',5);
+    plotKSCoeffOverlap(ks_coeff_all, select_spikeMch, num_units, 'overlap ks v. spike match 0%',6);
 
     % plot ks vs gmm coeff mismatches
 
@@ -105,7 +99,7 @@ function sim_run
     plotKSCoeffMismatch(ks_coeff_all, select_gauss2_5pct, num_units, 'mismatch ks v. gmm 2.5% cutoff',3);
     plotKSCoeffMismatch(ks_coeff_all, select_gauss5pct, num_units, 'mismatch ks v. gmm 5% cutoff',4);
     plotKSCoeffMismatch(ks_coeff_all, select_gauss10pct, num_units, 'mismatch ks v. gmm 10% cutoff',5);
-    plotKSCoeffMismatch(ks_coeff_all, select_spikeMch, num_units, 'mismatch ks v. spike match',5);
+    plotKSCoeffMismatch(ks_coeff_all, select_spikeMch, num_units, 'mismatch ks v. spike match',6);
 
 
     % plot ks and gmm  coeff nums vs unit numbers 
@@ -114,6 +108,6 @@ function sim_run
     plotKSCoeffCount(ks_coeff_all, select_gauss2_5pct, num_units, 'coeff ct ks v. gmm 2.5% cutoff',3);
     plotKSCoeffCount(ks_coeff_all, select_gauss5pct, num_units, 'coeff ct ks v. gmm 5% cutoff',4);
     plotKSCoeffCount(ks_coeff_all, select_gauss10pct, num_units, 'coeff ct ks v. gmm 10% cutoff',5);
-    plotKSCoeffCount(ks_coeff_all, select_spikeMch, num_units, 'coeff ct ks v. gmm spike match',5);
+    plotKSCoeffCount(ks_coeff_all, select_spikeMch, num_units, 'coeff ct ks v. gmm spike match',6);
 
 end

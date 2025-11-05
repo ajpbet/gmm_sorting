@@ -14,7 +14,6 @@ function plotKSCoeffMismatch(ks_coeff_all, select_all, unitNumbers, plotTitle, g
 figure; hold on;
 numUnits = numel(unitNumbers);
 
-% --- Background shading for alternating units ---
 for i = 1:numUnits
     unit = unitNumbers(i);
     if mod(unit,2) == 0
@@ -28,7 +27,6 @@ end
 hKS = [];
 hSel = [];
 
-% --- Plot points with small random jitter ---
 for i = 1:numUnits
     ks = ks_coeff_all{i};
     selCell = unique(select_all{i});
@@ -81,17 +79,15 @@ grid on;
 box on;
 legend([hKS, hSel], {'% KS not in select\_all','% GMM not in KS'}, 'Location','best');
 
-% --- Determine suffix based on graphNum ---
 switch graphNum
     case 1, suffix = '_0pct';
     case 2, suffix = '_1pct';
     case 3, suffix = '_2p5pct';
     case 4, suffix = '_5pct';
     case 5, suffix = '_10pct';
-    otherwise, suffix = sprintf('_graph%d', graphNum);
+    otherwise, suffix = '_spikeMatch';
 end
 
-% --- Save figure ---
 saveFolder = fullfile('results', 'mismatches');
 if ~exist(saveFolder,'dir'), mkdir(saveFolder); end
 

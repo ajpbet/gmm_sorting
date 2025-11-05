@@ -41,7 +41,6 @@ function [k_select,k_lSel,kDist_vec] = processKvKnee(k_sort, k_sortIdx)
     sorted_idx  = kVector_sortCoeff;
     sorted_gauss = kVector_sortGauss;
 
-    % --- Keep only top max candidates for knee detection ---
     minVal = 1;
     maxVal = length(kVector_sort);
     top_candidates = sorted_vals(end-maxVal+1:end);
@@ -50,7 +49,6 @@ function [k_select,k_lSel,kDist_vec] = processKvKnee(k_sort, k_sortIdx)
     ncoeff = length(sorted_vals);
     maxA = max(sorted_vals);
     
-    % --- Sliding-window slope computation ---
     nd = 10;
     if ncoeff >= nd
         d_vals = (top_candidates(nd:end) - top_candidates(1:end-nd+1)) ...
@@ -60,7 +58,6 @@ function [k_select,k_lSel,kDist_vec] = processKvKnee(k_sort, k_sortIdx)
         all_above1 = [];
     end
     
-    % --- Knee detection ---
     if numel(all_above1) >= 2
         aux2 = diff(all_above1);
         temp_bla = conv(aux2(:), [1 1 1]/3); % smooth differences
@@ -78,7 +75,6 @@ function [k_select,k_lSel,kDist_vec] = processKvKnee(k_sort, k_sortIdx)
         inputs = minVal;
     end
     
-    % --- Select top coefficients ---
     leng_select = length(top_indices(end:-1:end-inputs+1));
     k_select = zeros(leng_select, 3);
 
