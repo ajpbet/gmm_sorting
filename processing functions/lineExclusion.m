@@ -135,8 +135,9 @@ if plot_and_save
     
     % Add coeff# labels for all points (on top of all points)
     for i = 1:length(x_vals)
-        text(x_vals(i), y_vals(i)+0.7, num2str(coeffGauss(i,1)), ...
-            'HorizontalAlignment','center', 'FontSize',7, 'FontWeight','bold', 'Color','k');
+        pointID = sprintf('C%d,G%d',coeffGauss(i,1),coeffGauss(i,2));
+        text(x_vals(i), y_vals(i)+0.7, pointID, 'HorizontalAlignment', ...
+            'center', 'FontSize',7, 'FontWeight','bold', 'Color','k');
     end
     
     h_inter = plot(x_inter, y_inter, 'ko', 'MarkerFaceColor','y', 'MarkerSize',8, 'DisplayName','Intersection');
@@ -248,7 +249,7 @@ if plot_and_save
     
     % Save figure 1
     filename1 = fullfile(folderName, sprintf('ch%s_medD_v_kv_boundaries.png', channelNumStr));
-   % exportgraphics(gcf, filename1, 'Resolution',300);
+    exportgraphics(gcf, filename1, 'Resolution',300);
     close(gcf); % Close the current figure
 
     % FIG 2: Removal Plot (Shows points removed for trimming)

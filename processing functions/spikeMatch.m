@@ -64,15 +64,27 @@ function select_spike_match = spikeMatch(select_all, threshQ2, threshQ4, g, coef
     
     x_inter = select_all(end,1);
     
+    % Get the necessary IDs early for labeling and correlation
+    CoeffIDs = select_all(:, 3);
+    GaussIDs = select_all(:, 4);
+    minDist_vec = min(dist_Q4,dist_Q2);
+    [minDist_sort, minIdx] = sort(minDist_vec);
+
     minDist_vec = zeros(n, 1);
+    dist_tot = figure;
+    hold on;
+
     for k = 1:n
-        if X(k) < x_inter
-            minDist_vec(k) = dist_Q2(k);
-        else
-            minDist_vec(k) = dist_Q4(k);
-        end
+        idx = minIdx(k);
+        label = sprintf('C%dG%d', CoeffIDs(idx), GaussIDs(idx));
+        scatter(k, minDist_sort(k), 30, 'o', ...
+                'filled', 'MarkerFaceAlpha', 0.5); 
+        text(k, minDist_sort(k) + 0.05, label, ...
+             'FontSize', 7, 'HorizontalAlignment', 'center');
+        
     end
-    
+    saveas(dist_tot, fullfile(folderSpikeMatch, ['totDist_' basename '.png']), 'png');
+
     maxDistances = zeros(n);
     minDistances = zeros(n);
     
@@ -86,8 +98,16 @@ function select_spike_match = spikeMatch(select_all, threshQ2, threshQ4, g, coef
         end
     end
     
+
+
+    % Make overlapMat fully symmetric for row correlation analysis
+    overlapMatFull = overlapMat + overlapMat' + eye(n);
+    
+    % Calculate the correlation between rows of the overlap matrix
+    overlapCorrMat = calculateOverlapRowCorrelation(overlapMatFull, GaussIDs);
+    
     % Define the threshold for filtering
-    threshold = 0.8;
+    threshold = 0.01;
     
     % PLOTTING DATA PREPARATION
     
@@ -110,7 +130,6 @@ function select_spike_match = spikeMatch(select_all, threshQ2, threshQ4, g, coef
     Y_maxSizes_F = Y_maxSizes(meets_threshold_indices);
     X_minDist_F = X_minDist(meets_threshold_indices);
     Y_maxDist_F = Y_maxDist(meets_threshold_indices);
-
     % Filter the pair indices for labeling
     all_pair_indices = zeros(sum(upper_tri_indices(:)), 2); 
     k = 1;
@@ -121,39 +140,65 @@ function select_spike_match = spikeMatch(select_all, threshQ2, threshQ4, g, coef
         end
     end
     pair_indices_F = all_pair_indices(meets_threshold_indices, :);
-
     % Get the new total number of pairs to plot
     n_pairs_F = size(pair_indices_F, 1);
     
     % Generate colors based on the new, smaller number of pairs
-    CoeffIDs = select_all(:, 3);
-    GaussIDs = select_all(:, 4);
     
     all_hues = hsv(n_pairs_F);
     shuffled_order = randperm(n_pairs_F);
     pair_colors_F = all_hues(shuffled_order, :);
     
+    % Create combined labels C[coeff]G[gauss] for the heatmap axes
+    
+    % The labels correspond to the rows of select_all
+    heatmap_labels = cell(n, 1);
+    for idx = 1:n
+        % Format: C[Coefficient ID]G[Gaussian ID]
+        heatmap_labels{idx} = sprintf('C%dG%d', CoeffIDs(idx), GaussIDs(idx));
+    end
+
     % visualize the overlap
     hmap = figure;
     heatmap(overlapMat, 'ColorLimits', [0, 1], 'Title', sprintf('Pairwise Spike Overlap: %s', basename), ...
-             'XLabel', 'Gauss Index', 'YLabel', 'Gauss Index');
+             'XLabel', 'Coefficient (C) and Gaussian (G) ID', ... 
+             'YLabel', 'Coefficient (C) and Gaussian (G) ID', ... 
+             'XDisplayLabels', heatmap_labels, ... 
+             'YDisplayLabels', heatmap_labels); 
     saveas(hmap, fullfile(folderSpikeMatch, ['overlap_' basename '.png']), 'png');
-    close(hmap);
+  %  close(hmap);
+
+    % visualize the overlap row correlation
+    hCorr = figure;
+    heatmap(overlapCorrMat, 'ColorLimits', [-1, 1], 'Title', sprintf('Overlap Row Correlation (Skipping Zeros/Same Gaussians): %s', basename), ...
+             'XLabel', 'Coefficient (C) and Gaussian (G) ID', ...
+             'YLabel', 'Coefficient (C) and Gaussian (G) ID', ...
+             'XDisplayLabels', heatmap_labels, ...
+             'YDisplayLabels', heatmap_labels);
+    saveas(hCorr, fullfile(folderSpikeMatch, ['correlation_overlap_' basename '.png']), 'png');
+   % close(hCorr);
+    
     % max and min spike count plot
     sizePlt = figure('Name', 'Spike Count Plot');
     ax_size = axes(sizePlt);
     hold(ax_size, 'on');
+
+    % Set limits and plot diagonal starting from 0,0
+    max_size = max([X_minSizes_F; Y_maxSizes_F]);
+    lim_size = max_size * 1.1; % 10% buffer
+    xlim(ax_size, [0, lim_size]);
+    ylim(ax_size, [0, lim_size]);
+    plot(ax_size, [0, lim_size], [0, lim_size], 'k--', 'LineWidth', 1.5);
     
     for p = 1:n_pairs_F
         i_idx = pair_indices_F(p, 1);
         j_idx = pair_indices_F(p, 2);
         label = sprintf('C%dG%d, C%dG%d', CoeffIDs(i_idx), GaussIDs(i_idx), CoeffIDs(j_idx), GaussIDs(j_idx));
-
+       % label_ind = sprintf('i: %d, j: %d',i_idx,j_idx);
         % Scatter plot: Correct syntax uses 30 SizeData and color as positional args
         scatter(ax_size, X_minSizes_F(p), Y_maxSizes_F(p), 30, pair_colors_F(p,:), 'o', ...
                 'filled', 'MarkerFaceAlpha', 0.5); 
-
-        text(ax_size, X_minSizes_F(p), Y_maxSizes_F(p) + 0.03, label, ...
+        text(ax_size, X_minSizes_F(p), Y_maxSizes_F(p) + 0.03*lim_size, label, ...
              'FontSize', 7, 'Color', pair_colors_F(p,:), 'HorizontalAlignment', 'center');
     end
     
@@ -162,13 +207,20 @@ function select_spike_match = spikeMatch(select_all, threshQ2, threshQ4, g, coef
     xlabel(ax_size, 'Minimum Spike Count minSz');
     ylabel(ax_size, 'Maximum Spike Count maxSz');
     title(ax_size, sprintf('Comparison of Spike Set Sizes for Overlapping Pairs: %s', basename));
-    saveas(sizePlt, fullfile(folderSpikeMatch, ['size_' basename '.png']), 'png');
-    close(sizePlt);
+    saveas(sizePlt, fullfile(folderSpikeMatch, ['size_ind' basename '.png']), 'png');
+   % close(sizePlt);
 
     % max and min boundary distance plot
     distPlt = figure('Name', 'Boundary Distance Plot');
     ax_dist = axes(distPlt);
     hold(ax_dist, 'on');
+
+    % Set limits and plot diagonal starting from 0,0
+    max_dist = max([X_minDist_F; Y_maxDist_F]);
+    lim_dist = max_dist * 1.1; % 10% buffer
+    xlim(ax_dist, [0, lim_dist]);
+    ylim(ax_dist, [0, lim_dist]);
+    plot(ax_dist, [0, lim_dist], [0, lim_dist], 'k--', 'LineWidth', 1.5);
     
     for p = 1:n_pairs_F
         i_idx = pair_indices_F(p, 1);
@@ -179,7 +231,7 @@ function select_spike_match = spikeMatch(select_all, threshQ2, threshQ4, g, coef
         scatter(ax_dist, X_minDist_F(p), Y_maxDist_F(p), 30, pair_colors_F(p,:), 'o', ...
                 'filled', 'MarkerFaceAlpha', 0.5); 
         
-        text(ax_dist, X_minDist_F(p), Y_maxDist_F(p) + 0.03, label, ...
+        text(ax_dist, X_minDist_F(p), Y_maxDist_F(p) + 0.03*lim_dist, label, ...
              'FontSize', 7, 'Color', pair_colors_F(p,:), 'HorizontalAlignment', 'center');
     end
     
@@ -189,8 +241,7 @@ function select_spike_match = spikeMatch(select_all, threshQ2, threshQ4, g, coef
     ylabel(ax_dist, 'Maximum Normalized Distance to Boundary');
     title(ax_dist, sprintf('Pairwise Distance to Selection Boundary: %s', basename));
     saveas(distPlt, fullfile(folderSpikeMatch, ['dist_' basename '.png']), 'png'); 
-    close(distPlt);
-
+ %   close(distPlt);
     % find groups of highly similar coefficients
     isSimilar = overlapMat >= threshold;
     G = digraph(isSimilar);
