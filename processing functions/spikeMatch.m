@@ -364,26 +364,42 @@ function plot_selection_results(select_all, classification, threshQ2, threshQ4, 
     y_plot_Q4 = threshQ4(1) * x_plot + threshQ4(2);
     plot(ax, x_plot, y_plot_Q4, 'b--', 'LineWidth', 1, 'DisplayName', 'Threshold Q4');
 
+    m2 = threshQ2(1);
+    b2 = threshQ2(2);
+    m4 = threshQ4(1);
+    b4 = threshQ4(2);
     
-    % 1. Rejected (Black X)
+    % Check if slopes are significantly different to avoid division by zero
+    if abs(m2 - m4) > 1e-6
+        % Calculate x-coordinate of intersection
+        x_i = (b4 - b2) / (m2 - m4);
+        
+        % Calculate y-coordinate of intersection using the Q2 equation
+        y_i = m2 * x_i + b2;
+        
+        % Plot the intersection point (Yellow filled circle with black edge)
+        scatter(ax, x_i, y_i, 100, 'y', 'o', 'filled', ...
+                'MarkerEdgeColor', 'k', 'LineWidth', 1, 'DisplayName', 'Intersection');
+    else
+        % Slopes are equal (lines are parallel or coincident).
+        warning('Threshold lines are parallel or coincident (slopes are equal). Intersection point not calculated or plotted.');
+    end
     idx_rejected = (classification == 3);
     scatter(ax, X(idx_rejected), Y(idx_rejected), 40, 'k', 'x', ...
             'LineWidth', 1.5, 'DisplayName', 'Rejected (High Correlation)');
         
-    % 2. Backfilled (Green X)
     idx_backfilled = (classification == 2);
     scatter(ax, X(idx_backfilled), Y(idx_backfilled), 60, 'g', 'x', ...
             'LineWidth', 2, 'DisplayName', 'Backfilled (Unique Coeff)');
 
-    % 3. Core Selected (Green Circle)
     idx_selected = (classification == 1);
     scatter(ax, X(idx_selected), Y(idx_selected), 70, 'g', 'o', ...
             'MarkerFaceColor', [0 0.8 0], 'MarkerEdgeColor', 'g', 'LineWidth', 2, ...
             'DisplayName', 'Core Selected (Low Correlation)');
         
     % Finalize Plot
-    xlabel(ax, 'X Coordinate');
-    ylabel(ax, 'Y Coordinate');
+    xlabel(ax, 'med dist');
+    ylabel(ax, 'k distance');
     title(ax, sprintf('Final Selection Results: %s', basename));
     legend(ax, 'Location', 'best');
     grid(ax, 'on');

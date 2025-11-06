@@ -85,7 +85,7 @@ function sim_run
     end
 
     % plot ks vs gmm coeff matches
-     plotKSCoeffOverlap(ks_coeff_all, select_gauss0, num_units, 'overlap ks v. gmm 0% cutoff',1);
+    plotKSCoeffOverlap(ks_coeff_all, select_gauss0, num_units, 'overlap ks v. gmm 0% cutoff',1);
     plotKSCoeffOverlap(ks_coeff_all, select_gauss1pct, num_units, 'overlap ks v. gmm 1% cutoff',2);
     plotKSCoeffOverlap(ks_coeff_all, select_gauss2_5pct, num_units, 'overlap ks v. gmm 2.5% cutoff',3);
     plotKSCoeffOverlap(ks_coeff_all, select_gauss5pct, num_units, 'overlap ks v. gmm 5% cutoff',4);
