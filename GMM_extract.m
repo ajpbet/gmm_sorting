@@ -198,12 +198,14 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, cluster
 
     % process k knee when gaussians not near a peak are exluded
  %   [k_sel_NoPk,k_lSel_NoPk,kDist_vec_NoPk] = KvKneeNoPkExc(k_sort, k_sortIdx,pg,g_init,xg);
+    %pltSelect(k_lSel,kDist_vec,'61',folderPlots,1);
 
 
         %% meddist knee (all present gauss after combined gaussian removed)
     [medDist_select, medDist_lSel,medDist_vec] = processMedDistKnee(medDist_sort, medDist_sortIdx);    %% kv plot all vals with knee (all present gauss after combined gaussian removed)
     % medDist_vec has struc [medDist,coeff#,component(gauss)#]
     % original polyIds preserved in gauss(id)
+   % pltSelect(medDist_lSel,medDist_vec,'61',folderPlots,3);
 
     % process medDist when gaussians not near a peak are excluded
     % [medD_sel_noPk,medD_lSel_noPk,medD_vec_noPk] = medDistKneeNoPkExc(medDist_sort, medDist_sortIdx, ...
@@ -216,9 +218,10 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, cluster
         lineExclusion(medDist_vec,medDist_select, ...
         k_select,kDist_vec,folderPlots, basename);
     
-    threshQ2 = select_all.original.threshQ2;
-    threshQ4 = select_all.original.threshQ4;
-    select_spike_match = spikeMatch(select_gauss,threshQ2,threshQ4,g_init, coeffs,folderSpikeMatch,basename);
+    threshQ2 = select_all.trim10_0pct.threshQ2;
+    threshQ4 = select_all.trim10_0pct.threshQ4;
+    select_spike_match = spikeMatch(select_gauss_10pct,threshQ2,threshQ4,g_init, ...
+        coeffs,folderSpikeMatch,basename,10,0.9);
     % plotMedDistVsKv_selectAll(medDist_vec, kDist_vec, medDist_select, ...
     %     k_select, folderPlots, basename);
 

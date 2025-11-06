@@ -6,7 +6,7 @@ function [select_gauss_orig, select_gauss_1pct, select_gauss_2_5pct, select_gaus
 if nargin < 5, folderName = ''; end 
 if nargin < 6, channelNum = ''; end 
 plot_and_save = ~isempty(folderName) && ~isempty(channelNum); 
-
+%plot_and_save = false;
 %% initialization
 maxKv = max(kDist_vec(:,1));
 minKv = min(kDist_vec(:,1));
@@ -307,7 +307,7 @@ if plot_and_save
     
     % Save figure 2
     filename2 = fullfile(folderName, sprintf('ch%s_lineExclusion_removed_points.png', channelNumStr));
-    %exportgraphics(gcf, filename2, 'Resolution',300);
+    exportgraphics(gcf, filename2, 'Resolution',300);
     close(gcf);
 end
 %% summary

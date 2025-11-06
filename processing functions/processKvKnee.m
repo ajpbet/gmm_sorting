@@ -49,7 +49,7 @@ function [k_select,k_lSel,kDist_vec] = processKvKnee(k_sort, k_sortIdx)
     ncoeff = length(sorted_vals);
     maxA = max(sorted_vals);
     
-    nd = 10;
+    nd = max(10,maxVal/10);
     if ncoeff >= nd
         d_vals = (top_candidates(nd:end) - top_candidates(1:end-nd+1)) ...
                  / maxA * ncoeff / nd;

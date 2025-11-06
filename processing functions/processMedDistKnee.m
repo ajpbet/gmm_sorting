@@ -50,7 +50,7 @@ function [medDist_select,medDist_lSel,medDist_vec] = processMedDistKnee(medDist_
     ncoeff = length(sorted_vals);
     maxA = max(sorted_vals);
     
-    nd = 10;
+    nd = max(10,maxVal/10);
     if ncoeff >= nd
         d_vals = (top_candidates(nd:end) - top_candidates(1:end-nd+1)) ...
                  / maxA * ncoeff / nd;
