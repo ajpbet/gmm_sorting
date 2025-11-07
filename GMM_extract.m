@@ -210,6 +210,7 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, cluster
     % process medDist when gaussians not near a peak are excluded
     % [medD_sel_noPk,medD_lSel_noPk,medD_vec_noPk] = medDistKneeNoPkExc(medDist_sort, medDist_sortIdx, ...
     % pg,g_init,xg);
+    pltDualKneePlot(k_lSel, kDist_vec, medDist_lSel, medDist_vec, 'KDist', 'medDist', basename, folderPlots)
 
        %% Exclusion criterion
    % with all peaks
