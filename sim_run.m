@@ -21,21 +21,29 @@ function sim_run
 
     par = set_parameters;
     summaryFile = fullfile(folderName, 'coeff_summary_all.mat');
+    sim_type = 1;
     % loop through files
     for i = 1:numel(fullPaths)
         data = load(fullPaths{i});
         
         spikes = data.spikes;
-        cluster_class = data.cluster_class;
-        num_units(i) = numel(unique(cluster_class)) - 1;
 
         % Base name
         [~, baseName, ~] = fileparts(fullPaths{i});
+        if sim_type == 1
+            cluster_class = data.cluster_class;
+            num_units(i) = numel(unique(cluster_class)) - 1;
+        else
+            splitString = strsplit(baseName,'_');
+            splitString = splitString(~cellfun('isempty',splitString));
+            endStr = splitString{end};
+            num_units(i) = str2num(endStr);
+        end
 
         gmmFileName = fullfile(folderGMM, ['gmm_' baseName '.mat']);
 
         [select_all, ks_coeff,select_spike_match] = ...
-            GMM_extract(spikes, cluster_class, par, gmmFileName,baseName);
+            GMM_extract(spikes, par, gmmFileName,baseName);
 
         coeffFileName = fullfile(folderCoeff, ['coeff_' baseName '.mat']);
         save(coeffFileName, 'select_all', 'ks_coeff','select_spike_match');

@@ -70,9 +70,7 @@ function [k_select,k_lSel,kDist_vec] = processKvKnee(k_sort, k_sortIdx)
     
         % Number of inputs to select
         inputs = maxVal - thr_knee_diff + 1;
-    else
-        % Fallback if no steep slope detected
-        inputs = minVal;
+
     end
     
     leng_select = length(top_indices(end:-1:end-inputs+1));

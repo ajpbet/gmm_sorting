@@ -71,9 +71,7 @@ function [medDist_select,medDist_lSel,medDist_vec] = processMedDistKnee(medDist_
     
         % Number of inputs to select
         inputs = maxVal - thr_knee_diff + 1;
-    else
-        % Fallback if no steep slope detected
-        inputs = minVal;
+
     end
     
     len_medSelect = length(top_indices(end:-1:end-inputs+1));

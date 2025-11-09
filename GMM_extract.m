@@ -1,4 +1,4 @@
-function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, cluster_class, par, filename_mat,basename)
+function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, par, filename_mat,basename)
     % If GMM .mat file doesn't exist, generate and save it
     if ~exist(filename_mat, 'file')
         [inspk, ks_coeff, ks_out, ks_out_full, all_ks] = wave_features(spikes, par);
@@ -9,6 +9,10 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, cluster
              "ks_out_full", "all_ks");
     else
         load(filename_mat);
+        [inspk, ks_coeff, ks_out, ks_out_full, all_ks] = wave_features(spikes, par);
+        save(filename_mat, "summary_table", "g", "pg", "xg", ...
+             "coeffs", "inspk", "ks_coeff", "ks_out", ...
+             "ks_out_full", "all_ks");
     end
 
     %
@@ -210,20 +214,35 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, cluster
     % process medDist when gaussians not near a peak are excluded
     % [medD_sel_noPk,medD_lSel_noPk,medD_vec_noPk] = medDistKneeNoPkExc(medDist_sort, medDist_sortIdx, ...
     % pg,g_init,xg);
-    pltDualKneePlot(k_lSel, kDist_vec, medDist_lSel, medDist_vec, 'KDist', 'medDist', basename, folderPlots)
+%    pltDualKneePlot(k_lSel, kDist_vec, medDist_lSel, medDist_vec, 'KDist', 'medDist', basename, folderPlots)
 
        %% Exclusion criterion
    % with all peaks
-    [select_gauss,select_gauss1pct,select_gauss2p5pct,...
-        select_gauss_5pct,select_gauss_10pct,select_all] = ...
-        lineExclusion(medDist_vec,medDist_select, ...
-        k_select,kDist_vec,folderPlots, basename);
+    plot_and_save = true; % Or false
     
-    threshQ2 = select_all.trim10_0pct.threshQ2;
-    threshQ4 = select_all.trim10_0pct.threshQ4;
-    select_spike_match = spikeMatch(select_gauss_10pct,threshQ2,threshQ4,g_init, ...
-        coeffs,folderSpikeMatch,basename,10,0.9);
-    % plotMedDistVsKv_selectAll(medDist_vec, kDist_vec, medDist_select, ...
+    [select_gauss,select_gauss1pct,select_gauss2p5pct,...
+        select_gauss_5pct, select_gauss_10pct, select_all, ...
+     x_vals, y_vals, gauss_ids, x_inter, y_inter] = lineExclusion(medDist_vec, ...
+        medDist_select, k_select, kDist_vec, folderPlots, basename);
+    
+    % Get the boundary lines for the 10% trim
+    threshQ2_10pct = select_all.trim10_0pct.threshQ2;
+    threshQ4_10pct = select_all.trim10_0pct.threshQ4;
+    
+    select_spike_match = spikeMatch(select_gauss_10pct, ...
+        threshQ2_10pct, threshQ4_10pct, g_init, coeffs, ...
+        folderSpikeMatch, basename, 5, 0.9);
+    pltDualKneePlot(k_lSel, kDist_vec, medDist_lSel, medDist_vec,ks_coeff,select_gauss_10pct,select_spike_match, 'KDist', 'medDist', basename, folderPlots)
+
+
+    % This plot now shows the final combined results
+    plotSelectedVsAll(x_vals, y_vals, gauss_ids, ...
+        x_inter, y_inter, ...
+        select_all.trim10_0pct, select_gauss_10pct, ...
+        select_spike_match, ...
+        folderSpikeMatch, basename, plot_and_save);
+
+    
     %     k_select, folderPlots, basename);
 
    % without variables not near a peak

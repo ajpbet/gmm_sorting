@@ -120,4 +120,4 @@ switch graphNum
     otherwise, suffix = 'spikeMatch';
 end
 
-saveas(gcf, fullfile(folderSave, ['CoeffCount' suffix '.png']));
+saveas(gcf, fullfile(folderSave, ['CoeffCount' suffix '.pdf']));

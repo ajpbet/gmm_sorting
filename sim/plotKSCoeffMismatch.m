@@ -24,8 +24,8 @@ for i = 1:numUnits
 end
 
 % Initialize handle arrays
-hKS = [];
-hSel = [];
+hKS  = plot(nan, nan, 'o', 'MarkerFaceColor',[0.2 0.6 0.8], 'MarkerEdgeColor','k');
+hSel = plot(nan, nan, 's', 'MarkerFaceColor',[0.8 0.4 0.2], 'MarkerEdgeColor','k');
 
 for i = 1:numUnits
     ks = ks_coeff_all{i};
@@ -44,30 +44,23 @@ for i = 1:numUnits
             pct_ks = 0;
         else
             overlap = intersect(round(ksVec,6), round(selVec,6));
-            pct_ks = (numel(ksVec)-numel(overlap))/numel(ksVec)*100;
+            total = numel(ksVec)+numel(selVec)-overlap;
+            pct_ks = (numel(ksVec)-numel(overlap))/total*100;
         end
         
         if isempty(selVec)
             pct_sel = 0;
         else
             overlap = intersect(round(ksVec,6), round(selVec,6));
-            pct_sel = (numel(selVec)-numel(overlap))/numel(selVec)*100;
+            total = numel(ksVec)+numel(selVec)-overlap;
+            pct_sel = (numel(selVec)-numel(overlap))/total*100;
         end
         
         x_jitter = unitNumbers(i) + (rand()*0.5 - 0.1);
         
-        % Store handles on first plot only for legend
-        if isempty(hKS)
-            hKS = plot(x_jitter, pct_ks, 'o', 'MarkerFaceColor', [0.85 0.3 0.3], 'MarkerEdgeColor', 'k');
-        else
-            plot(x_jitter, pct_ks, 'o', 'MarkerFaceColor', [0.85 0.3 0.3], 'MarkerEdgeColor', 'k');
-        end
-        
-        if isempty(hSel)
-            hSel = plot(x_jitter, pct_sel, 's', 'MarkerFaceColor', [0.3 0.6 0.3], 'MarkerEdgeColor', 'k');
-        else
-            plot(x_jitter, pct_sel, 's', 'MarkerFaceColor', [0.3 0.6 0.3], 'MarkerEdgeColor', 'k');
-        end
+
+        plot(x_jitter, pct_ks, 'o', 'MarkerFaceColor',[0.2 0.6 0.8], 'MarkerEdgeColor', 'k');
+        plot(x_jitter, pct_sel, 's', 'MarkerFaceColor', [0.8 0.4 0.2], 'MarkerEdgeColor', 'k');
     end
 end
 xlabel('Unit Number');
@@ -77,7 +70,7 @@ xlim([min(unitNumbers)-0.5, max(unitNumbers)+0.5]);
 title(plotTitle);
 grid on;
 box on;
-legend([hKS, hSel], {'% KS not in select\_all','% GMM not in KS'}, 'Location','best');
+legend([hKS, hSel], {'% KS not in GMM','% GMM not in KS'}, 'Location','best');
 
 switch graphNum
     case 1, suffix = '_0pct';
@@ -91,7 +84,7 @@ end
 saveFolder = fullfile('results', 'mismatches');
 if ~exist(saveFolder,'dir'), mkdir(saveFolder); end
 
-fileNamePNG = ['ks_mismatch' suffix '.png'];
+fileNamePNG = ['ks_mismatch' suffix '.pdf'];
 
 saveas(gcf, fullfile(saveFolder, fileNamePNG));
 

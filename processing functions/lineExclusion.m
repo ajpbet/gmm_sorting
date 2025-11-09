@@ -1,7 +1,12 @@
-function [select_gauss_orig, select_gauss_1pct, select_gauss_2_5pct, select_gauss_5pct, select_gauss_10pct, select_all] = lineExclusion(medDist_vec, medDist_select, k_select, kDist_vec, folderName, channelNum)
+function [select_gauss_orig, select_gauss_1pct, select_gauss_2_5pct, select_gauss_5pct, select_gauss_10pct, select_all, x_vals, y_vals, gauss_ids, x_inter, y_inter] = lineExclusion(medDist_vec, medDist_select, k_select, kDist_vec, folderName, channelNum)
 % LINEEXCLUSION (Center Trim: Trims based on Normalized Euclidean Distance to the Intersection Point)
 % Builds Q2/Q4 threshold lines, iteratively trims based on distance to center point (intersection),
 % and returns selected Gaussians while optionally saving two figures.
+%
+% MODIFIED: Now also returns plot-critical variables (x_vals, y_vals, etc.)
+%           The call to plotSelectedVsAll has been REMOVED and must be called
+%           from the main script AFTER spikeMatch.
+
 if nargin < 5, folderName = ''; end 
 if nargin < 6, channelNum = ''; end 
 plot_and_save = ~isempty(folderName) && ~isempty(channelNum); 
@@ -217,7 +222,7 @@ if plot_and_save
         h_legend(end+1) = h_same;
     end
     if ~isempty(h_unrelated_tmp)
-        h_unrelated = scatter(NaN, NaN, 35, [1 0 0], 'x', 'LineWidth',1.5, 'DisplayName', 'Unrelated'); % Dummy plot for legend
+        h_unrelated = scatter(NaN, NaN, 35, [1 0 0], 'x', 'LineWidth',1.5, 'DisplayName', 'Unrelated'); % Dummy for legend
         h_legend(end+1) = h_unrelated;
     end
     
@@ -298,10 +303,6 @@ if plot_and_save
     exportgraphics(gcf, filename2, 'Resolution',300);
     close(gcf);
 
-    % --- NEW FIGURE 3: Selected vs All (10% Boundary) ---
-    % Pass the necessary variables for boundary plotting: the overall intersection and the 10% trim results
-    plotSelectedVsAll(x_vals, y_vals, x_inter, y_inter, select_all.trim10_0pct, select_gauss_10pct, folderName, channelNumStr, plot_and_save);
-    % ---------------------------------------------------
 end
 %% summary
     fprintf('\n=== LineExclusion Summary ===\n');
@@ -311,77 +312,4 @@ end
     fprintf('Trim 5%%: %d selected, %d removed\n', size(select_gauss_5pct,1), select_all.trim5_0pct.removed_points);
     fprintf('Trim 10%%: %d selected, %d removed\n', size(select_gauss_10pct,1), select_all.trim10_0pct.removed_points);
     fprintf('=============================\n\n');
-end
-
-% NESTED FUNCTION FOR PLOTTING (Figure 3)
-function plotSelectedVsAll(all_x, all_y, x_inter, y_inter, trim_struct_10, selected_gauss_10pct, folderName, channelNumStr, plot_and_save)
-    if plot_and_save
-        % Extract selected points' coordinates
-        selected_x = selected_gauss_10pct(:,1);
-        selected_y = selected_gauss_10pct(:,2);
-        
-        % Identify which points were *not* selected
-        is_selected_mask = ismember([all_x, all_y], [selected_x, selected_y], 'rows');
-        
-        not_selected_x = all_x(~is_selected_mask);
-        not_selected_y = all_y(~is_selected_mask);
-        
-        figure('Visible','on'); hold on; grid on; box on;
-        
-        % Plot NOT selected points as black 'x'
-        h_not_selected = scatter(not_selected_x, not_selected_y, 30, 'k', 'x', 'LineWidth', 1.5, 'DisplayName', 'Not Selected');
-        
-        % Plot SELECTED points as green filled dots
-        h_selected = scatter(selected_x, selected_y, 40, [0 0.7 0], 'filled', 'DisplayName', 'Selected (10% Trim)');
-        
-        % --- Plot 10% Trimmed Boundary Line ---
-        
-        % Get generator points for 10% Trim Boundary
-        keep_mask_10 = trim_struct_10.keep_mask;
-        x_keep_10 = all_x(keep_mask_10);
-        y_keep_10 = all_y(keep_mask_10);
-        
-        h_boundary = [];
-        if ~isempty(x_keep_10)
-            x_lim_Q2_10 = min(x_keep_10); y_lim_Q2_10 = max(y_keep_10);
-            x_lim_Q4_10 = max(x_keep_10); y_lim_Q4_10 = min(y_keep_10);
-        
-            % Plot Q2 segment
-            h_boundary = plot([x_lim_Q2_10, x_inter], [y_lim_Q2_10, y_inter], 'r-', 'LineWidth', 1.5, 'DisplayName', '10% Trim Boundary');
-            % Plot Q4 segment
-            plot([x_inter, x_lim_Q4_10], [y_inter, y_lim_Q4_10], 'r-', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-        end
-        % --- End Boundary Plot ---
-        
-        % --- New X/Y Lines at Intersection ---
-        % Capture limits AFTER plotting data and boundaries to ensure lines span the whole axes
-        xL = xlim;
-        yL = ylim;
-        
-        % Plot Y-line (horizontal line at y_inter)
-        h_yline_inter = plot(xL, [y_inter y_inter], 'b:', 'LineWidth', 1.0, 'HandleVisibility','on', 'DisplayName', 'Intersection Line');
-        % Plot X-line (vertical line at x_inter)
-        h_xline_inter = plot([x_inter x_inter], yL, 'b:', 'LineWidth', 1.0, 'HandleVisibility','off'); % Hide handle since h_yline_inter is already the legend entry
-        
-        % Send lines to the back so they don't obscure points
-        uistack([h_xline_inter, h_yline_inter], 'bottom'); 
-        % --- End New X/Y Lines ---
-        
-        % Plot Intersection Point (should be on top)
-        h_inter = plot(x_inter, y_inter, 'ko', 'MarkerFaceColor','y', 'MarkerSize',8, 'DisplayName','Intersection Point');
-
-        % Build Legend Handles (h_yline_inter represents both x and y lines)
-        h_legend = [h_selected, h_not_selected, h_boundary, h_yline_inter, h_inter];
-        h_legend = h_legend(isgraphics(h_legend)); % Filter out empty handles
-        
-        xlabel('Median Distance');
-        ylabel('K-value');
-        title(sprintf('10%% Trim Selection Result with Boundary (Channel %s)', channelNumStr));
-        legend(h_legend, 'Location','bestoutside');
-        
-        % Save figure 3
-        filename3 = fullfile(folderName, sprintf('ch%s_10pct_selected_vs_all.png', channelNumStr));
-        exportgraphics(gcf, filename3, 'Resolution',300);
-        close(gcf);
-    end
 end
