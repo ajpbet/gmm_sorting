@@ -1,4 +1,4 @@
-function plotSelectedVsAll(all_x, all_y, all_gauss_ids, x_inter, y_inter, trim_struct_10, selected_gauss_10pct, select_spike_match, folderName, channelNumStr, plot_and_save)
+function plotSelectedVsAll(all_x, all_y, all_gauss_ids, x_inter, y_inter, trim_struct_10, selected_gauss_10pct, select_spike_match, folderName, channelNumStr, plot_and_save,ks_coeff)
 % PLOTSELECTEDVSALL (Figure 3 - Modified)
 % Plots LineExclusion results combined with spikeMatch redundancy filtering.
 %
@@ -6,13 +6,13 @@ function plotSelectedVsAll(all_x, all_y, all_gauss_ids, x_inter, y_inter, trim_s
 % 1. Not Selected (Black 'x'): Points outside the 10% trim boundary.
 % 2. Redundant (Green 'x'): Points INSIDE 10% trim, but REMOVED by spikeMatch.
 % 3. Selected & Kept (Green 'o'): Points INSIDE 10% trim AND KEPT by spikeMatch.
+% 4. KS Coeffs (Blue 'x' or 'o'): Points from ks_coeff list, plotted on top.
 %
 % MODIFIED: Added summary text box with before/after counts.
-
+% MODIFIED: Added ks_coeff input and plotting (preserves shape).
     if ~plot_and_save
         return;
     end
-
     % Get ID lists for comparison
     % Set A: All points selected by 10% trim (CoeffID, GaussID)
     Set_A_IDs = selected_gauss_10pct(:, 3:4); 
@@ -24,27 +24,47 @@ function plotSelectedVsAll(all_x, all_y, all_gauss_ids, x_inter, y_inter, trim_s
     pts_kept = [];         % Green 'o'
     pts_redundant = [];    % Green 'x'
     
+    % --- NEW: KS-specific containers to preserve shape ---
+    ks_pts_not_selected = []; % Blue 'x'
+    ks_pts_kept = [];         % Blue 'o'
+    ks_pts_redundant = [];    % Blue 'x'
+    
     % Classify every single point from the original set
     for i = 1:length(all_x)
-        current_id = all_gauss_ids(i, :);
+        current_id = all_gauss_ids(i, :); % Assuming [CoeffID, GaussID]
         current_pt = [all_x(i), all_y(i)];
+        
+        % Check if this point's coefficient is in the ks_coeff list
+        is_ks = ismember(current_id(1), ks_coeff); % Assuming 1st col is CoeffID
         
         % Check if this point was inside the 10% trim boundary
         is_in_A = ismember(current_id, Set_A_IDs, 'rows');
         
         if ~is_in_A
             % 1. Not selected by lineExclusion
-            pts_not_selected = [pts_not_selected; current_pt];
+            if is_ks
+                ks_pts_not_selected = [ks_pts_not_selected; current_pt];
+            else
+                pts_not_selected = [pts_not_selected; current_pt];
+            end
         else
             % Point was inside the 10% boundary, check if it was kept
             is_in_B = ismember(current_id, Set_B_IDs, 'rows');
             
             if is_in_B
                 % 2. Selected by lineExclusion AND Kept by spikeMatch
-                pts_kept = [pts_kept; current_pt];
+                if is_ks
+                    ks_pts_kept = [ks_pts_kept; current_pt];
+                else
+                    pts_kept = [pts_kept; current_pt];
+                end
             else
                 % 3. Selected by lineExclusion but REMOVED by spikeMatch
-                pts_redundant = [pts_redundant; current_pt];
+                if is_ks
+                    ks_pts_redundant = [ks_pts_redundant; current_pt];
+                else
+                    pts_redundant = [pts_redundant; current_pt];
+                end
             end
         end
     end
@@ -70,7 +90,24 @@ function plotSelectedVsAll(all_x, all_y, all_gauss_ids, x_inter, y_inter, trim_s
         h_selected = scatter(pts_kept(:,1), pts_kept(:,2), 40, [0 0.7 0], 'filled', 'DisplayName', 'Selected & Kept');
         h_legend(end+1) = h_selected;
     end
-
+    
+    % --- NEW KS PLOTTING (ON TOP) ---
+    % Combine both 'x' types for KS
+    ks_all_x = [ks_pts_not_selected; ks_pts_redundant];
+    
+    % Plot KS 'x' points (Blue 'x')
+    if ~isempty(ks_all_x)
+        h_ks_x = scatter(ks_all_x(:,1), ks_all_x(:,2), 40, 'b', 'x', 'LineWidth', 2, 'DisplayName', 'KS Coeff (Not Kept)');
+        h_legend(end+1) = h_ks_x;
+    end
+    
+    % Plot KS 'o' points (Blue 'o')
+    if ~isempty(ks_pts_kept)
+        h_ks_o = scatter(ks_pts_kept(:,1), ks_pts_kept(:,2), 40, 'b', 'filled', 'DisplayName', 'KS Coeff (Kept)');
+        h_legend(end+1) = h_ks_o;
+    end
+    % --- END NEW KS PLOT ---
+    
     % --- Plot 10% Trimmed Boundary Line ---
     keep_mask_10 = trim_struct_10.keep_mask;
     x_keep_10 = all_x(keep_mask_10);
@@ -110,6 +147,9 @@ function plotSelectedVsAll(all_x, all_y, all_gauss_ids, x_inter, y_inter, trim_s
     num_gauss_after = size(select_spike_match, 1);
     num_coeff_after = numel(unique(select_spike_match(:, 3)));
     
+    % --- NEW KS COUNT ---
+    num_ks = numel(ks_coeff);
+    
     % Format the text string
     txt_summary = sprintf([...
         '-- Before Redundancy (10%% Trim) --\n' ...
@@ -118,13 +158,18 @@ function plotSelectedVsAll(all_x, all_y, all_gauss_ids, x_inter, y_inter, trim_s
         '\n' ...
         '-- After Redundancy (SpikeMatch) --\n' ...
         '  Selected Gaussians: %d\n' ...
-        '  Unique Coefficients: %d'], ...
+        '  Unique Coefficients: %d\n' ...
+        '\n' ...
+        '-- Special Sets --\n' ...                 % <-- NEW SECTION
+        '  KS Coefficients: %d'], ...              % <-- NEW LINE
         num_gauss_before, num_coeff_before, ...
-        num_gauss_after, num_coeff_after);
-
+        num_gauss_after, num_coeff_after, ...
+        num_ks); % Added num_ks
+        
     % Position is [x, y, w, h] in normalized figure units.
     % We set a starting [x, y] and let 'FitBoxToText' handle the size.
-    annotation('textbox',[0.83, 0.15, 0.1, 0.1], 'String',txt_summary, ...
+    % --- MODIFIED X-POSITION from 0.83 to 0.85 ---
+    annotation('textbox',[0.85, 0.15, 0.1, 0.1], 'String',txt_summary, ...
         'FitBoxToText','on', 'EdgeColor','k', 'BackgroundColor', 'w', ...
         'FontSize',9, 'VerticalAlignment','top', 'Margin', 5);
     
@@ -132,5 +177,4 @@ function plotSelectedVsAll(all_x, all_y, all_gauss_ids, x_inter, y_inter, trim_s
     filename3 = fullfile(folderName, sprintf('ch%s_10pct_final_selection.pdf', channelNumStr));
     exportgraphics(gcf, filename3, 'Resolution',300);
     close(gcf);
-
 end

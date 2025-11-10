@@ -232,7 +232,7 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, par, fi
     select_spike_match = spikeMatch(select_gauss_10pct, ...
         threshQ2_10pct, threshQ4_10pct, g_init, coeffs, ...
         folderSpikeMatch, basename, 5, 0.9);
-    pltDualKneePlot(k_lSel, kDist_vec, medDist_lSel, medDist_vec,ks_coeff,select_gauss_10pct,select_spike_match, 'KDist', 'medDist', basename, folderPlots)
+    pltDualKneePlot(k_lSel, kDist_vec, medDist_lSel, medDist_vec,select_gauss_10pct,select_spike_match, 'KDist', 'medDist', basename, folderPlots)
 
 
     % This plot now shows the final combined results
@@ -240,7 +240,7 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, par, fi
         x_inter, y_inter, ...
         select_all.trim10_0pct, select_gauss_10pct, ...
         select_spike_match, ...
-        folderSpikeMatch, basename, plot_and_save);
+        folderSpikeMatch, basename, plot_and_save,ks_coeff);
 
     
     %     k_select, folderPlots, basename);

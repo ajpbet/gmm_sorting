@@ -1,6 +1,8 @@
 function plotKSCoeffCount(ks_coeff_all, select_all, unitNumbers, plotTitle, graphNum)
 % PLOTKSCOEFFCOUNT plots number of coefficients per unit with shading, jitter,
 % trend lines, R^2, and Spearman correlation.
+% Also adds a paired sign test to the scatter plot and generates a separate
+% box plot of the count distributions.
 %
 % Inputs:
 %   ks_coeff_all : cell array of ks coefficients per unit
@@ -9,10 +11,10 @@ function plotKSCoeffCount(ks_coeff_all, select_all, unitNumbers, plotTitle, grap
 %   plotTitle    : string, title for the plot
 %   graphNum     : integer (1-5) to define suffix for saving
 
+% --- Initial Setup and Data Prep ---
 numUnits = numel(unitNumbers);
 figure('Position', [100, 100, 1000, 750]); % Make figure larger
 hold on;
-
 % Ensure unitNumbers is a column vector for calculations
 unitNumbers = unitNumbers(:); 
 ks_counts  = cellfun(@numel, ks_coeff_all);
@@ -20,12 +22,14 @@ ks_counts = ks_counts(:); % Ensure column vector
 sel_counts = cellfun(@(x) numel(unique(x)), select_all);  % unique counts (GMM)
 sel_counts = sel_counts(:); % Ensure column vector
 
+% --- Scatter Plot ---
 % Determine max count for axis limits
 yMax = ceil(max([ks_counts; sel_counts]) * 1.2); % take max, scale 20%
 if yMax == 0 % Handle case where all counts are 0
     yMax = 10;
 end
 
+% Plot shading
 for i = 1:numUnits
     unit = unitNumbers(i);
     if mod(unit,2) == 0
@@ -35,13 +39,13 @@ for i = 1:numUnits
     end
 end
 
+% Plot data points with jitter
 hKS = [];
 hSel = [];
 jitterAmp = 0.5;  % +/- 0.1
 ks_color = [0.2 0.6 0.8];  % Blue
 sel_color = [0.8 0.4 0.2]; % Red-orange
-
-markerSize_new = 6; % Changed MarkerSize here
+markerSize_new = 6; 
 
 for i = 1:numUnits
     x_jitter = unitNumbers(i) + (rand()*jitterAmp - jitterAmp/2);
@@ -63,7 +67,7 @@ for i = 1:numUnits
     end
 end
 
-
+% --- Trend Lines and Stats ---
 % KS Data (Blue)
 p_ks = polyfit(unitNumbers, ks_counts, 1);       % Linear fit
 y_fit_ks = polyval(p_ks, unitNumbers);           % Y-values for trend line
@@ -82,15 +86,13 @@ R2_sel = r_sel^2;                                % R-squared
 % Plot GMM trend line
 hSel_fit = plot(unitNumbers, y_fit_sel, '--', 'Color', sel_color, 'LineWidth', 4);
 
-
+% --- Plot Formatting and Legend ---
 ax = gca; % Get current axes
 ax.FontSize = 18; % Set tick/label font size
-
 % Labels
 xlabel('Unit Number', 'FontSize', 15, 'FontWeight', 'bold');
 ylabel('Number of Coefficients', 'FontSize', 15, 'FontWeight', 'bold');
 title(plotTitle, 'FontSize', 18, 'FontWeight', 'bold');
-
 % Limits and Grid
 xlim([min(unitNumbers)-0.5, max(unitNumbers)+0.5]);
 ylim([0 yMax]);
@@ -102,13 +104,26 @@ ax.Layer = 'top'; % Ensure grid/ticks are on top of the patch
 % Using tex interpreter for rho (ρ) and italic p
 ks_fit_str = sprintf('KS Trend (R^2=%.2f, {\\it\\rho}=%.2f, {\\itp}=%.3g)', R2_ks, rho_ks, pval_ks);
 gmm_fit_str = sprintf('GMM Trend (R^2=%.2f, {\\it\\rho}=%.2f, {\\itp}=%.3g)', R2_sel, rho_sel, pval_sel);
-
 % Create legend
 hL = legend([hKS, hSel, hKS_fit, hSel_fit], ...
     {'KS Coefficients', 'GMM Coefficients', ks_fit_str, gmm_fit_str}, ...
     'Location', 'northwest', 'FontSize', 13);
 hL.Interpreter = 'tex'; % Enable tex for formatting
 
+% --- Add Paired Sign Test to Scatter Plot ---
+if ~isempty(ks_counts) && ~isempty(sel_counts)
+    % Run the paired sign test
+    [p, ~, ~] = signtest(ks_counts, sel_counts);
+    textStr = sprintf('Paired Sign Test: p = %.3e', p);
+else
+    textStr = 'Paired Sign Test: No data';
+end
+% Add text to the top-right corner (to avoid legend)
+text(ax.XLim(2) - 0.02*range(ax.XLim), ax.YLim(2) - 0.02*range(ax.YLim), ...
+     textStr, 'VerticalAlignment', 'top', 'HorizontalAlignment', 'right', ...
+     'FontSize', 9, 'BackgroundColor', 'w', 'EdgeColor', 'k');
+
+% --- Save the Scatter Plot ---
 folderSave = fullfile('results','counts');
 if ~exist(folderSave,'dir'), mkdir(folderSave); end
 switch graphNum
@@ -119,5 +134,26 @@ switch graphNum
     case 5, suffix = '_10pct';
     otherwise, suffix = 'spikeMatch';
 end
-
 saveas(gcf, fullfile(folderSave, ['CoeffCount' suffix '.pdf']));
+
+% --- Create and Save Additional Box Plot ---
+if ~isempty(ks_counts)
+    figure; % Create a new figure
+    
+    data_for_boxplot = [ks_counts, sel_counts];
+    labels_for_boxplot = {'KS Coeff. Count', 'GMM Coeff. Count'};
+    
+    boxplot(data_for_boxplot, 'Labels', labels_for_boxplot);
+    
+    ylabel('Number of Coefficients');
+    % Use a multi-line title for clarity
+    title({plotTitle; 'Distribution of Coefficient Counts (All Units)'});
+    grid on;
+    box on;
+    
+    % Save the box plot to a separate file
+    fileNameBoxPlotPDF = ['CoeffCount' suffix '_boxplot.pdf'];
+    saveas(gcf, fullfile(folderSave, fileNameBoxPlotPDF));
+end
+
+end % End of function
