@@ -143,7 +143,7 @@ if ~isempty(ks_counts)
     data_for_boxplot = [ks_counts, sel_counts];
     labels_for_boxplot = {'KS Coeff. Count', 'GMM Coeff. Count'};
     
-    boxplot(data_for_boxplot, 'Labels', labels_for_boxplot);
+    boxplot(data_for_boxplot, 'Labels', labels_for_boxplot,'Notch','on');
     
     ylabel('Number of Coefficients');
     % Use a multi-line title for clarity

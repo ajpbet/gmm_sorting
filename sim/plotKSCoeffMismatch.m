@@ -123,7 +123,7 @@ if ~isempty(all_pct_ks)
     data_for_boxplot = [all_pct_ks, all_pct_sel];
     labels_for_boxplot = {'% KS not in GMM', '% GMM not in KS'};
     
-    boxplot(data_for_boxplot, 'Labels', labels_for_boxplot);
+    boxplot(data_for_boxplot, 'Labels', labels_for_boxplot,'Notch','on');
     
     ylabel('Percent Mismatch (%)');
     % Use a multi-line title for clarity
