@@ -111,7 +111,7 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, par, fi
     % filename_kv = fullfile(folderName,sprintf('ch%s_maxKvalsPerCoef.png', channelNum));
   %  exportgraphics(fig_k, filename_kv, 'Resolution', 300);
 
-%% mathing top 3 vals
+%% macthing top 3 vals
     maxLen = max(cellfun(@numel, kj_mat));
     
     % Sort each numeric array in descending order
@@ -158,43 +158,41 @@ function [select_all, ks_coeff,select_spike_match] = GMM_extract(spikes, par, fi
         medDist_sortIdx{r} = ids_valid(idx);    % map sorted indices to polyIDs
     end
 %% exclude medDist values that are part of the combined pdf
-   if exc_combPdf
-        numRows = numel(M_comp);
-        
-        medDist_sort_masked    = cell(size(medDist_sort));
-        medDist_sortIdx_masked = cell(size(medDist_sortIdx));
-        
-        k_sort_masked = cell(size(k_sort));
-        k_sortIdx_masked = cell(size(k_sortIdx));
+    numRows = numel(M_comp);
+    
+    medDist_sort_masked    = cell(size(medDist_sort));
+    medDist_sortIdx_masked = cell(size(medDist_sortIdx));
+    
+    k_sort_masked = cell(size(k_sort));
+    k_sortIdx_masked = cell(size(k_sortIdx));
 
-        for r = 1:numRows
-            vals = medDist_sort{r};
-            ids  = medDist_sortIdx{r};
-            idx_exclude = M_comp{r};  % indices to exclude
-            
-            mask = ~ismember(ids, idx_exclude) & ~isnan(vals);
-            
-            medDist_sort_masked{r}    = vals(mask);
-            medDist_sortIdx_masked{r} = ids(mask);
-        end
+    for r = 1:numRows
+        vals = medDist_sort{r};
+        ids  = medDist_sortIdx{r};
+        idx_exclude = M_comp{r};  % indices to exclude
         
-        for r = 1:numRows
-            vals = k_sort{r};
-            ids  = k_sortIdx{r};
-            idx_exclude = M_comp{r};  % indices to exclude
-            
-            mask = ~ismember(ids, idx_exclude) & ~isnan(vals);
-            
-            k_sort_masked{r}    = vals(mask);
-            k_sortIdx_masked{r} = ids(mask);
-        end
-        % Replace originals
-        k_sort = k_sort_masked;
-        k_sortIdx = k_sortIdx_masked;
-        medDist_sort    = medDist_sort_masked;
-        medDist_sortIdx = medDist_sortIdx_masked;
+        mask = ~ismember(ids, idx_exclude) & ~isnan(vals);
+        
+        medDist_sort_masked{r}    = vals(mask);
+        medDist_sortIdx_masked{r} = ids(mask);
+    end
+    
+    for r = 1:numRows
+        vals = k_sort{r};
+        ids  = k_sortIdx{r};
+        idx_exclude = M_comp{r};  % indices to exclude
+        
+        mask = ~ismember(ids, idx_exclude) & ~isnan(vals);
+        
+        k_sort_masked{r}    = vals(mask);
+        k_sortIdx_masked{r} = ids(mask);
+    end
+    % Replace originals
+    k_sort = k_sort_masked;
+    k_sortIdx = k_sortIdx_masked;
+    medDist_sort    = medDist_sort_masked;
+    medDist_sortIdx = medDist_sortIdx_masked;
 
-   end
 
     %% kv knee(all present gauss after combined gaussian removed)
     % medDist_vec has struc [medDist,coeff#,component(gauss)#]
